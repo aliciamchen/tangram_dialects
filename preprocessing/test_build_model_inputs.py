@@ -10,7 +10,12 @@ Run with:
 import numpy as np
 import pandas as pd
 
-from preprocessing.build_model_inputs import final_phase_properties, ingroup_advantage, within_group_block_means
+from preprocessing.build_model_inputs import (
+    block_similarity_means,
+    final_phase_properties,
+    ingroup_advantage,
+    within_group_block_means,
+)
 
 GAMES = pd.DataFrame({"gameId": ["g1", "g2"], "condition": ["social_mixed", "refer_separated"], "phase1Blocks": [6, 6]})
 
@@ -33,15 +38,45 @@ def test_within_group_block_means_average_a_groups_pairs_and_skip_missing_simila
     )
     out = within_group_block_means(pairs, GAMES)
     assert list(out.columns) == [
-        "gameId", "condition", "group", "target", "phaseNum", "blockNum", "block", "similarity", "n_pairs",
+        "gameId", "condition", "group", "target", "phaseNum", "blockNum", "block", "gameBlock", "similarity", "n_pairs",
     ]
     g1_block2 = out[(out["group"] == "g1_A") & (out["block"] == 2)].iloc[0]
-    assert g1_block2["blockNum"] == 1 and g1_block2["phaseNum"] == 1
+    assert g1_block2["blockNum"] == 1 and g1_block2["phaseNum"] == 1 and g1_block2["gameBlock"] == 2
+    assert out[out["gameId"] == "g2"].iloc[0]["gameBlock"] == 7, "Phase 2 continues after the game's six Phase 1 blocks"
     assert abs(g1_block2["similarity"] - 0.3) < 1e-12 and g1_block2["n_pairs"] == 2
     g1_block3 = out[(out["group"] == "g1_A") & (out["block"] == 3)].iloc[0]
     assert g1_block3["similarity"] == 0.8 and g1_block3["n_pairs"] == 1
     assert (out["condition"][out["gameId"] == "g2"] == "refer_separated").all()
     assert len(out) == 3, "between-group pairs and all-missing cells produce no row"
+
+
+def test_block_similarity_means_average_within_and_between_pairs_per_game_and_block():
+    pairs = pd.DataFrame(
+        {
+            "gameId": ["g1"] * 4 + ["g2"],
+            "target": "t1",
+            "speaker1": ["a", "a", "b", "a", "x"],
+            "speaker2": ["b", "c", "d", "d", "y"],
+            "group1": ["A", "A", "A", "A", "A"],
+            "group2": ["A", "A", "B", "B", "B"],
+            "sameGroup": [1, 1, 0, 0, 0],
+            "similarity": [0.2, 0.4, 0.1, np.nan, 0.5],
+            "blockNum": [1, 1, 1, 1, 2],
+            "phaseNum": [1, 1, 1, 1, 2],
+            "allGroupsPaired": 1,
+        }
+    )
+    out = block_similarity_means(pairs, GAMES)
+    assert list(out.columns) == [
+        "gameId", "condition", "phaseNum", "blockNum", "block", "gameBlock", "pair_type", "similarity", "n_pairs",
+    ]
+    within = out[(out["gameId"] == "g1") & (out["pair_type"] == "within")].iloc[0]
+    between = out[(out["gameId"] == "g1") & (out["pair_type"] == "between")].iloc[0]
+    assert abs(within["similarity"] - 0.3) < 1e-12 and within["n_pairs"] == 2
+    assert between["similarity"] == 0.1 and between["n_pairs"] == 1, "a pair without a similarity is left out"
+    g2 = out[out["gameId"] == "g2"].iloc[0]
+    assert g2["pair_type"] == "between" and g2["block"] == 3 and g2["gameBlock"] == 9
+    assert g2["condition"] == "refer_separated"
 
 
 def test_final_phase_properties_keep_the_last_block_per_speaker_tangram_and_phase():

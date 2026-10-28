@@ -18,6 +18,11 @@ Writes into data/<dataset>/model_inputs/:
     within_group_block_means.csv          mean SBERT similarity of a group's
                                           descriptions of a tangram, per block
     within_group_block_means_jaccard.csv  the same with content-word Jaccard
+    block_similarity_means.csv            mean similarity within and between
+                                          original groups per game and block,
+                                          the descriptive specificity
+                                          trajectory the figures draw
+    block_similarity_means_jaccard.csv    the same with content-word Jaccard
     final_phase_properties.csv            the H3c description properties of each
                                           speaker's final description of each
                                           tangram in each phase
@@ -44,6 +49,12 @@ UNIQUENESS_COLUMNS = ["uniqueness", "n_unique_words"]
 
 def _condition_of(df: pd.DataFrame, games: pd.DataFrame) -> pd.Series:
     return df["gameId"].map(games.set_index("gameId")["condition"])
+
+
+def _game_block(df: pd.DataFrame, games: pd.DataFrame) -> pd.Series:
+    """The block counted across the game: Phase 2 continues after each game's own Phase 1 length (as preprocessing.py defines gameBlock)."""
+    phase1_blocks = df["gameId"].map(games.set_index("gameId")["phase1Blocks"]).astype(float)
+    return (df["block"] + np.where(df["phaseNum"] == 2, phase1_blocks, 0)).astype(int)
 
 
 def _as_bool(series: pd.Series) -> pd.Series:
@@ -75,9 +86,10 @@ def within_group_block_means(block_pairwise: pd.DataFrame, games: pd.DataFrame) 
     df["blockNum"] = pd.to_numeric(df["blockNum"]).astype(int)
     df["phaseNum"] = pd.to_numeric(df["phaseNum"]).astype(int)
     df["block"] = df["blockNum"] + 1
+    df["gameBlock"] = _game_block(df, games)
     out = (
         df.groupby(
-            ["gameId", "condition", "group", "target", "phaseNum", "blockNum", "block"],
+            ["gameId", "condition", "group", "target", "phaseNum", "blockNum", "block", "gameBlock"],
             dropna=False,
         )
         .agg(similarity=("similarity", "mean"), n_pairs=("similarity", "size"))
@@ -86,6 +98,33 @@ def within_group_block_means(block_pairwise: pd.DataFrame, games: pd.DataFrame) 
         .reset_index(drop=True)
     )
     return out
+
+
+def block_similarity_means(block_pairwise: pd.DataFrame, games: pd.DataFrame) -> pd.DataFrame:
+    """One mean per game, block and pair type (within or between original groups) over the block's pairs.
+
+    The descriptive trajectory of group specificity: how alike descriptions
+    of the same tangram are within an original group and between groups,
+    block by block across the whole game. Every pair enters, as in the
+    within-group means; `gameBlock` counts blocks across the game so Phase 2
+    continues the Phase 1 axis. A block with no pair of a type has no row.
+    """
+    df = block_pairwise.copy()
+    df["similarity"] = pd.to_numeric(df["similarity"], errors="coerce")
+    df = df[np.isfinite(df["similarity"])]
+    df["condition"] = _condition_of(df, games)
+    df["pair_type"] = np.where(pd.to_numeric(df["sameGroup"]) == 1, "within", "between")
+    df["blockNum"] = pd.to_numeric(df["blockNum"]).astype(int)
+    df["phaseNum"] = pd.to_numeric(df["phaseNum"]).astype(int)
+    df["block"] = df["blockNum"] + 1
+    df["gameBlock"] = _game_block(df, games)
+    return (
+        df.groupby(["gameId", "condition", "phaseNum", "blockNum", "block", "gameBlock", "pair_type"], dropna=False)
+        .agg(similarity=("similarity", "mean"), n_pairs=("similarity", "size"))
+        .reset_index()
+        .sort_values(["gameId", "gameBlock", "pair_type"])
+        .reset_index(drop=True)
+    )
 
 
 def final_phase_properties(
@@ -165,8 +204,13 @@ def build_all(tables_dir: Path, measures_dir: Path, model_inputs_dir: Path) -> d
         if not path.exists():
             print(f"  {measure} not present; skipping within_group_block_means{suffix}.csv")
             continue
-        frame = within_group_block_means(pd.read_csv(path), games)
+        block_pairwise = pd.read_csv(path)
+        frame = within_group_block_means(block_pairwise, games)
         name = f"within_group_block_means{suffix}.csv"
+        frame.to_csv(model_inputs_dir / name, index=False)
+        counts[name] = len(frame)
+        frame = block_similarity_means(block_pairwise, games)
+        name = f"block_similarity_means{suffix}.csv"
         frame.to_csv(model_inputs_dir / name, index=False)
         counts[name] = len(frame)
 
