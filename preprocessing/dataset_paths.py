@@ -34,9 +34,8 @@ the data:
                                  writes, with a manifest.json (stats/)
     results/macros/               the LaTeX macro files the manuscript reads
                                  (report/inferential.py, report/descriptives.py)
-    results/figures/             the article's figures, each with the table it
-                                 plots beside it (report/figures/), and in
-                                 manual/ the hand-made ones
+    results/plots/               the article's figures (report/figures/); the
+                                 hand-made figures are in the top-level figures/
 
 Everything generated sits one level down in the data tree, so a file at the
 top of the dataset directory is one somebody wrote by hand. The results tree
@@ -114,7 +113,7 @@ class DatasetDirs:
         self.results = PROJECT_ROOT / "results" if name == DEFAULT_DATASET else self.data / "results"
         self.estimates = self.results / "estimates"
         self.macros = self.results / "macros"
-        self.figures = self.results / "figures"
+        self.plots = self.results / "plots"
 
     def read_runs(self) -> list[str]:
         """Export timestamps listed in runs.txt (blank lines and # comments ignored)."""

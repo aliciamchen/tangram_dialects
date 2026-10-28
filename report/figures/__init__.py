@@ -20,9 +20,8 @@ maps the number to the name). A module defines two functions:
 
 The runner (`uv run python -m report.figures --dataset full`, or `make
 figures`) calls both for every module and saves the figure as
-results/figures/<name>.pdf with the plotted table beside it as
-<name>.csv, so every number in a figure can be read, checked and diffed
-without the PDF. `make sync` copies the PDFs into the manuscript's project.
+results/plots/<name>.pdf. `make sync` copies the PDFs into the
+manuscript's project.
 
 Tests: report/test_figures.py
 """
@@ -47,30 +46,28 @@ def figure_names() -> list[str]:
     )
 
 
-def save_figure(fig, data: pd.DataFrame, name: str, figures_dir: Path) -> tuple[Path, Path]:
-    """Save a figure as <name>.pdf and its plotted table as <name>.csv in figures_dir, and close it."""
+def save_figure(fig, name: str, figures_dir: Path) -> Path:
+    """Save a figure as <name>.pdf in figures_dir, and close it."""
     figures_dir = Path(figures_dir)
     figures_dir.mkdir(parents=True, exist_ok=True)
     pdf = figures_dir / f"{name}.pdf"
-    csv = figures_dir / f"{name}.csv"
     # No creation date in the PDF, so an unchanged figure is byte-identical from run to run.
     fig.savefig(pdf, metadata={"CreationDate": None})
     plt.close(fig)
-    data.to_csv(csv, index=False)
-    return pdf, csv
+    return pdf
 
 
-def run_figure(module, dirs) -> tuple[Path, Path]:
-    """Build one figure module's table and figure for a dataset and save both."""
+def run_figure(module, dirs) -> Path:
+    """Build one figure module's table and figure for a dataset and save the figure."""
     name = module.__name__.rsplit(".", 1)[-1]
     df = module.data(dirs)
     if not isinstance(df, pd.DataFrame):
         raise TypeError(f"{name}.data() must return a DataFrame, not {type(df).__name__}")
     fig = module.plot(df)
-    return save_figure(fig, df, name, dirs.figures)
+    return save_figure(fig, name, dirs.plots)
 
 
-def run_figures(dirs, names: list[str] | None = None) -> list[tuple[Path, Path]]:
+def run_figures(dirs, names: list[str] | None = None) -> list[Path]:
     """Run every figure module (or the named ones) for a dataset; returns the files written."""
     apply_style()
     selected = names or figure_names()
@@ -80,9 +77,9 @@ def run_figures(dirs, names: list[str] | None = None) -> list[tuple[Path, Path]]
     written = []
     for name in selected:
         module = importlib.import_module(f"report.figures.{name}")
-        pdf, csv = run_figure(module, dirs)
-        print(f"Wrote {pdf} and {csv.name}")
-        written.append((pdf, csv))
+        pdf = run_figure(module, dirs)
+        print(f"Wrote {pdf}")
+        written.append(pdf)
     if not written:
         print("No figure modules in report/figures/ yet; nothing written.")
     return written

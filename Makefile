@@ -13,7 +13,9 @@
 #   data/<name>/cache/           fitted objects kept between model runs (never committed)
 #   results/estimates/           one tidy estimates table per model script (models)
 #   results/macros/               the LaTeX macro files (macros)
-#   results/figures/             the figures, each with the table it plots, and the hand-made ones in manual/ (figures)
+#   results/plots/               the figures, one PDF each (figures)
+#   figures/                     the hand-made figures (top-level, not per-dataset): the
+#                               Illustrator source and the final figures it exports
 #
 # The verbs, in the order the work runs:
 #   make data           # extract, combine and process the exports into data/<name>/ (private
@@ -73,7 +75,8 @@ MODEL_INPUTS_DIR = $(DATA_DIR)/model_inputs
 RESULTS_DIR = $(if $(filter full,$(DATASET)),results,$(DATA_DIR)/results)
 ESTIMATES_DIR = $(RESULTS_DIR)/estimates
 MACROS_DIR = $(RESULTS_DIR)/macros
-FIGURES_DIR = $(RESULTS_DIR)/figures
+PLOTS_DIR = $(RESULTS_DIR)/plots
+MANUAL_FIGURES_DIR = figures
 MANUSCRIPT_DIR = writing/manuscript
 RUNS_FILE = $(DATA_DIR)/runs.txt
 # Run timestamps from runs.txt (comments and blank lines dropped)
@@ -97,10 +100,10 @@ data: extract combine process  ## Build data/<name>/ from the exports listed in 
 
 report: macros figures  ## Write the macros and the figures from the estimates and the tables
 
-sync: ## Copy results/macros/*.tex and results/figures/*.pdf, the hand-made ones in manual/ included, into writing/manuscript/, where Overleaf reads them
+sync: ## Copy results/macros/*.tex, results/plots/*.pdf and the hand-made figures in figures/ into writing/manuscript/, where Overleaf reads them
 	@mkdir -p $(MANUSCRIPT_DIR)/macros $(MANUSCRIPT_DIR)/figures
 	cp $(MACROS_DIR)/*.tex $(MANUSCRIPT_DIR)/macros/
-	@n=0; for f in $(FIGURES_DIR)/*.pdf $(FIGURES_DIR)/manual/*.pdf; do [ -e "$$f" ] && cp "$$f" $(MANUSCRIPT_DIR)/figures/ && n=$$((n+1)); done; echo "Synced $$(ls $(MACROS_DIR)/*.tex | wc -l | tr -d ' ') macro files and $$n figures from $(RESULTS_DIR)/ to $(MANUSCRIPT_DIR)/"
+	@n=0; for f in $(PLOTS_DIR)/*.pdf $(MANUAL_FIGURES_DIR)/*.pdf; do [ -e "$$f" ] && cp "$$f" $(MANUSCRIPT_DIR)/figures/ && n=$$((n+1)); done; echo "Synced $$(ls $(MACROS_DIR)/*.tex | wc -l | tr -d ' ') macro files and $$n figures from $(RESULTS_DIR)/ and $(MANUAL_FIGURES_DIR)/ to $(MANUSCRIPT_DIR)/"
 
 # ── Pipeline steps ──────────────────────────────────────────
 
@@ -218,7 +221,7 @@ inferential: ## The inferential macros (checks, primary, secondary) from results
 descriptives: ## The descriptive macros (overview, exploratory, survey) from the tables, the measures and the estimates
 	$(PY) -m report.descriptives --dataset $(DATASET)
 
-figures: ## The article's figures, each with its plotted table → results/figures/
+figures: ## The article's figures → results/plots/
 	$(PY) -m report.figures --dataset $(DATASET)
 
 # ── Tests ───────────────────────────────────────────────────

@@ -9,7 +9,7 @@ from report.figures import figure_names, run_figures
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Draw the article's figures for one dataset into results/figures/")
+    parser = argparse.ArgumentParser(description="Draw the article's figures for one dataset into results/plots/")
     add_dataset_argument(parser)
     parser.add_argument("names", nargs="*", help=f"figure modules to draw (default: all of {', '.join(figure_names()) or 'none yet'})")
     args = parser.parse_args()
@@ -17,7 +17,7 @@ def main():
     if not dirs.model_inputs.is_dir():
         raise SystemExit(f"Error: no model inputs for dataset '{dirs.name}' at {dirs.model_inputs}; run `make data` first")
     if dirs.name != "full":
-        print(f"Dataset '{dirs.name}' is not the full sample: the figures written to {dirs.figures} are not results.")
+        print(f"Dataset '{dirs.name}' is not the full sample: the figures written to {dirs.plots} are not results.")
     run_figures(dirs, args.names)
 
 
