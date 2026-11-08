@@ -12,15 +12,21 @@ maps the number to the name). A module defines two functions:
         results/estimates/. Nothing is aggregated or re-indexed
         here beyond what the figure needs to draw; an aggregate that a
         model also uses belongs in preprocessing, and a bootstrap interval
-        over games comes from report.bootstrap.
+        over games comes from report.bootstrap. A module whose panels the
+        SI draws again on a subset of games also takes `restriction`, the
+        name of a rerun of stats/primary/robustness.R (RESTRICTIONS in
+        _common.py); the runner itself always calls data(dirs).
 
-    def plot(df: pd.DataFrame) -> matplotlib.figure.Figure
+    def plot(df: pd.DataFrame) -> matplotlib.figure.Figure | dict[str, Figure]
         The figure, drawn from that table alone with the palette, labels
-        and sizes of report.plot_style and nothing of its own.
+        and sizes of report.plot_style and nothing of its own. A figure
+        assembled by hand from separate panels returns a dict instead, one
+        figure per panel keyed by what the panel shows.
 
 The runner (`uv run python -m report.figures --dataset full`, or `make
 figures`) calls both for every module and saves the figure as
-results/plots/<name>.pdf. `make sync` copies the PDFs into the
+results/plots/<name>.pdf, or each panel of a dict as
+results/plots/<name>_<key>.pdf. `make sync` copies the PDFs into the
 manuscript's project.
 
 Tests: report/test_figures.py
@@ -51,20 +57,34 @@ def save_figure(fig, name: str, figures_dir: Path) -> Path:
     figures_dir = Path(figures_dir)
     figures_dir.mkdir(parents=True, exist_ok=True)
     pdf = figures_dir / f"{name}.pdf"
-    # No creation date in the PDF, so an unchanged figure is byte-identical from run to run.
-    fig.savefig(pdf, metadata={"CreationDate": None})
+    # The tight bounding box counts an x label's height but not its width (a y label's width but not its
+    # height), so a label longer than its axis is cut unless it is named in full.
+    labels = [label for ax in fig.axes for label in (ax.xaxis.label, ax.yaxis.label) if label.get_text()]
+    # Trimmed to what the figure draws with a thin pad, for placing in Illustrator, which also covers the
+    # glyph overshoot matplotlib's text metrics leave out; no creation date in the PDF, so an unchanged figure
+    # is byte-identical from run to run.
+    fig.savefig(pdf, metadata={"CreationDate": None}, bbox_inches="tight", pad_inches=0.05,
+                bbox_extra_artists=fig.get_default_bbox_extra_artists() + labels)
     plt.close(fig)
     return pdf
 
 
-def run_figure(module, dirs) -> Path:
-    """Build one figure module's table and figure for a dataset and save the figure."""
+def run_figure(module, dirs) -> Path | list[Path]:
+    """Build one figure module's table and figure for a dataset and save the figure.
+
+    Returns the PDF written, or the list of PDFs when the module's plot()
+    returns a dict of panels. A module that sets FOLDER writes into that
+    subfolder of the plots directory (the confirmatory tests).
+    """
     name = module.__name__.rsplit(".", 1)[-1]
     df = module.data(dirs)
     if not isinstance(df, pd.DataFrame):
         raise TypeError(f"{name}.data() must return a DataFrame, not {type(df).__name__}")
-    fig = module.plot(df)
-    return save_figure(fig, name, dirs.plots)
+    result = module.plot(df)
+    out = Path(dirs.plots) / getattr(module, "FOLDER", "")
+    if isinstance(result, dict):
+        return [save_figure(fig, f"{name}_{key}", out) for key, fig in result.items()]
+    return save_figure(result, name, out)
 
 
 def run_figures(dirs, names: list[str] | None = None) -> list[Path]:
@@ -77,9 +97,10 @@ def run_figures(dirs, names: list[str] | None = None) -> list[Path]:
     written = []
     for name in selected:
         module = importlib.import_module(f"report.figures.{name}")
-        pdf = run_figure(module, dirs)
-        print(f"Wrote {pdf}")
-        written.append(pdf)
+        pdfs = run_figure(module, dirs)
+        for pdf in pdfs if isinstance(pdfs, list) else [pdfs]:
+            print(f"Wrote {pdf}")
+            written.append(pdf)
     if not written:
         print("No figure modules in report/figures/ yet; nothing written.")
     return written

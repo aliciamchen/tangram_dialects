@@ -63,6 +63,7 @@ cd experiment && npm run test:unit    # server unit tests; Playwright only throu
 | `.claude/rules/testing.md` | the Playwright suite and server unit tests |
 | `.claude/rules/sentry.md` | error monitoring in the client |
 | `.claude/rules/data-pipeline.md` | datasets, pipeline steps, the analysis scripts and the report layer, the definitions that are easy to get wrong |
+| `.claude/rules/figures.md` | the article's figures: the module contract, the look, panels assembled by hand and the settled conventions |
 | `.claude/rules/message-filter.md` | the LLM message filter |
 | `.claude/rules/operations.md` | payments, blocklist and the other Prolific tooling |
 | `.claude/rules/python-env.md` | uv and the Python environment |

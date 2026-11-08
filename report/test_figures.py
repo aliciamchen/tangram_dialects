@@ -48,6 +48,33 @@ def test_run_figure_calls_data_then_plot_and_names_the_file_after_the_module(tmp
     assert pdf.name == "block_means.pdf"
 
 
+def test_run_figure_saves_each_panel_of_a_dict_under_the_module_name_and_its_key(tmp_path):
+    module = types.ModuleType("report.figures.strands")
+    module.data = lambda dirs: pd.DataFrame({"x": [1, 2]})
+
+    def plot(df):
+        panels = {}
+        for key in ("pair1_similarity", "pair1_refer_mixed"):
+            fig, ax = plt.subplots()
+            ax.plot(df["x"])
+            panels[key] = fig
+        return panels
+
+    module.plot = plot
+    pdfs = run_figure(module, types.SimpleNamespace(plots=tmp_path / "figures"))
+    assert [p.name for p in pdfs] == ["strands_pair1_similarity.pdf", "strands_pair1_refer_mixed.pdf"]
+    assert all(p.stat().st_size > 0 for p in pdfs)
+
+
+def test_run_figure_writes_into_the_module_folder(tmp_path):
+    module = types.ModuleType("report.figures.confirmatory_h0")
+    module.FOLDER = "confirmatory_tests"
+    module.data = lambda dirs: pd.DataFrame({"x": [1, 2]})
+    module.plot = lambda df: {"columns": plt.figure()}
+    pdfs = run_figure(module, types.SimpleNamespace(plots=tmp_path / "figures"))
+    assert pdfs == [tmp_path / "figures" / "confirmatory_tests" / "confirmatory_h0_columns.pdf"]
+
+
 def test_run_figure_refuses_a_module_whose_data_is_not_a_table(tmp_path):
     module = types.ModuleType("report.figures.bad")
     module.data = lambda dirs: [1, 2]

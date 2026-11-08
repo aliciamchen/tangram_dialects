@@ -100,10 +100,10 @@ data: extract combine process  ## Build data/<name>/ from the exports listed in 
 
 report: macros figures  ## Write the macros and the figures from the estimates and the tables
 
-sync: ## Copy results/macros/*.tex, results/plots/*.pdf and the hand-made figures in figures/ into writing/manuscript/, where Overleaf reads them
+sync: ## Copy results/macros/*.tex, results/plots/*.pdf (and its subfolders) and the hand-made figures in figures/ into writing/manuscript/, where Overleaf reads them
 	@mkdir -p $(MANUSCRIPT_DIR)/macros $(MANUSCRIPT_DIR)/figures
 	cp $(MACROS_DIR)/*.tex $(MANUSCRIPT_DIR)/macros/
-	@n=0; for f in $(PLOTS_DIR)/*.pdf $(MANUAL_FIGURES_DIR)/*.pdf; do [ -e "$$f" ] && cp "$$f" $(MANUSCRIPT_DIR)/figures/ && n=$$((n+1)); done; echo "Synced $$(ls $(MACROS_DIR)/*.tex | wc -l | tr -d ' ') macro files and $$n figures from $(RESULTS_DIR)/ and $(MANUAL_FIGURES_DIR)/ to $(MANUSCRIPT_DIR)/"
+	@n=0; for f in $(PLOTS_DIR)/*.pdf $(PLOTS_DIR)/*/*.pdf $(MANUAL_FIGURES_DIR)/*.pdf; do [ -e "$$f" ] && cp "$$f" $(MANUSCRIPT_DIR)/figures/ && n=$$((n+1)); done; echo "Synced $$(ls $(MACROS_DIR)/*.tex | wc -l | tr -d ' ') macro files and $$n figures from $(RESULTS_DIR)/ and $(MANUAL_FIGURES_DIR)/ to $(MANUSCRIPT_DIR)/"
 
 # ── Pipeline steps ──────────────────────────────────────────
 
