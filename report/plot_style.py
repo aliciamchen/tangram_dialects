@@ -113,10 +113,6 @@ DIRECT_LABEL_IN_COLOR = True  # a line's name in the line's color; False sets it
 BETWEEN_LINESTYLE = (0, (3, 1.5))  # between-group similarity where it shares a panel with within-group (solid) and the color carries the condition
 BETWEEN_MARKER = "^"  # the mark of the second kind of line where the lines carry points: a filled triangle, since a hollow circle means Phase 2
 STIMULUS_GLYPH = "#B8BEBB"  # a stimulus drawn small and light in a panel, as a reminder of which tangram it shows
-# A word set over the data (a line style's name among the game lines): a tight
-# rectangle of translucent white with rounded corners behind it, so the lines
-# show faintly through
-FROSTED_LABEL = dict(boxstyle="round,pad=0.2,rounding_size=0.35", facecolor="white", alpha=0.75, edgecolor="none")
 PANEL_FACE = "#F3F5F4"  # the boxes of the design schematic
 PANEL_EDGE = "#DCE1DE"
 # A mark that is filled before the manipulation and hollow after it: the face
@@ -167,7 +163,6 @@ ABSENT = "#DCDCDC"
 # ── Sizes, in inches ─────────────────────────────────────────
 
 SINGLE_COLUMN = (3.5, 2.7)
-DOUBLE_COLUMN = (7.2, 3.0)
 # The plotting area of a panel written as its own PDF for assembly by hand, so
 # that panels line up when set side by side; the margins hold what each carries
 PANEL_AXES = (1.44, 0.96)

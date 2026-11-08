@@ -20,19 +20,10 @@ The drawing idioms, each taking the long table the module's data() built:
     draw_trajectory(ax, table, ...)      a quantity over blocks: per-game lines
                                          behind the condition means with their
                                          intervals
-    label_conditions(ax, table, ...)     the condition names beside the ends of
-                                         their lines, in place of a legend;
-                                         text_legend(ax, ...) lists them as
-                                         colored words where the lines end too
-                                         close together to label
     draw_scatter(ax, table)              one quantity against another: a point
                                          per game behind the condition means
                                          with their intervals as crosses;
                                          scatter_table() builds its table
-    label_bundles(ax, table, ...)        a word for each line style beside the
-                                         end of its bundle of lines, where two
-                                         styles share a panel and the color
-                                         carries the condition
 
 And for a figure assembled by hand from separate panels:
 
@@ -97,7 +88,6 @@ import nltk
 import numpy as np
 import pandas as pd
 from matplotlib import transforms
-from matplotlib.lines import Line2D
 from matplotlib.patches import Polygon, Rectangle
 
 from report.bootstrap import bootstrap_mean
@@ -389,45 +379,6 @@ def label_lines(
             textcoords="offset points", ha="left" if side == "right" else "right", va="center",
             fontsize=size, color=_label_color(colors[v]), annotation_clip=False,
         )
-
-
-def label_conditions(
-    ax, table: pd.DataFrame, conditions=CONDITION_ORDER, side: str = "right", x: str = "gameBlock", y: str = "value",
-) -> None:
-    """The condition names beside the ends of their mean lines, or beside their means in a scatter.
-
-    The game counts are left to the caption."""
-    present = set(table.loc[table["level"] == "condition", "condition"])
-    values = [c for c in conditions if c in present]
-    label_lines(ax, table, "condition", values, CONDITION_LABELS, CONDITION_COLORS, side, x, y)
-
-
-def label_bundles(ax, table: pd.DataFrame, key: str, values, words: dict) -> None:
-    """A word for each line style beside the end of its bundle of lines, in ink.
-
-    Where two line styles share a panel and the color carries the condition,
-    the conditions are named once elsewhere and each style gets a word of its
-    own, set at the mean end of its lines."""
-    summary = table[table["level"] == "condition"]
-    last = summary["gameBlock"].max()
-    ends = summary[summary["gameBlock"] == last].groupby(key)["value"].mean()
-    bundles = pd.DataFrame({key: ends.index, "gameBlock": last, "value": ends.to_numpy(), "level": "condition"})
-    label_lines(ax, bundles, key, values, words, {v: INK for v in values})
-
-
-def text_legend(ax, conditions=CONDITION_ORDER, loc: str = "upper right", anchor: tuple | None = None) -> None:
-    """The condition names as a list of words in their colors, with no keys.
-
-    For lines that end too close together to label; the game counts are left
-    to the caption. `anchor` places the list's `loc` corner at a point in axes
-    fractions, for an empty corner of the plot.
-    """
-    entries = [(CONDITION_LABELS[c], _label_color(CONDITION_COLORS[c])) for c in conditions]
-    handles = [Line2D([], [], linewidth=0, label=text) for text, _ in entries]
-    ax.legend(
-        handles=handles, loc=loc, bbox_to_anchor=anchor, handlelength=0, handletextpad=0,
-        labelcolor=[color for _, color in entries], borderpad=0.2, labelspacing=0.3,
-    )
 
 
 def phase_segments(df: pd.DataFrame) -> list[pd.DataFrame]:
