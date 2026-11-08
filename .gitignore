@@ -34,6 +34,9 @@ explore/
 # Writing projects (each an Overleaf project mirrored through Dropbox)
 writing/
 *.ai
+# Whole-document exports of the Illustrator file; the article's figures are the per-figure exports in figures/paper_files/
+figures/figures.pdf
+figures/figures_v2.pdf
 
 # Quarto render directories of the power analysis
 simulations/**/*_files/
