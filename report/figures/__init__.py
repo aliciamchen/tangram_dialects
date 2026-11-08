@@ -26,8 +26,10 @@ maps the number to the name). A module defines two functions:
 The runner (`uv run python -m report.figures --dataset full`, or `make
 figures`) calls both for every module and saves the figure as
 results/plots/<name>.pdf, or each panel of a dict as
-results/plots/<name>_<key>.pdf. `make sync` copies the PDFs into the
-manuscript's project.
+results/plots/<name>_<key>.pdf. The PDFs are the panels the author
+assembles into the article's figures in Illustrator; `make sync` copies
+the exports in figures/paper_files/, not these, into the manuscript's
+project.
 
 Tests: report/test_figures.py
 """
