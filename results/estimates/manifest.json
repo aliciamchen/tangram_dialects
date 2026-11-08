@@ -56,9 +56,11 @@
       "p_value",
       "perm_mean",
       "perm_sd",
+      "perm_lower",
+      "perm_upper",
       "shared_phase1"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "b6e8c3d-dirty"
   },
   "checks/specificity_trajectory": {
     "file": "checks/specificity_trajectory.csv",
@@ -81,6 +83,71 @@
       "note"
     ],
     "commit": "cbd0c66-dirty"
+  },
+  "exploratory/social_phase2_specificity": {
+    "file": "exploratory/social_phase2_specificity.csv",
+    "source": "stats/exploratory/social_phase2_specificity.R",
+    "rows": 1,
+    "columns": [
+      "analysis",
+      "kind",
+      "term",
+      "estimate",
+      "std_error",
+      "statistic",
+      "df",
+      "lower",
+      "upper",
+      "p_value",
+      "n_games",
+      "measure"
+    ],
+    "commit": "b6e8c3d-dirty"
+  },
+  "exploratory/social_phase2_specificity_coefficients": {
+    "file": "exploratory/social_phase2_specificity_coefficients.csv",
+    "source": "stats/exploratory/social_phase2_specificity.R",
+    "rows": 3,
+    "columns": [
+      "analysis",
+      "kind",
+      "term",
+      "estimate",
+      "std_error",
+      "statistic",
+      "df",
+      "lower",
+      "upper",
+      "p_value",
+      "odds_ratio",
+      "or_lower",
+      "or_upper",
+      "n_obs",
+      "random_effects",
+      "n_games"
+    ],
+    "commit": "b6e8c3d-dirty"
+  },
+  "exploratory/social_phase2_specificity_robustness": {
+    "file": "exploratory/social_phase2_specificity_robustness.csv",
+    "source": "stats/exploratory/social_phase2_specificity.R",
+    "rows": 1,
+    "columns": [
+      "analysis",
+      "kind",
+      "term",
+      "estimate",
+      "std_error",
+      "statistic",
+      "df",
+      "lower",
+      "upper",
+      "p_value",
+      "restriction",
+      "n_games",
+      "measure"
+    ],
+    "commit": "b6e8c3d-dirty"
   },
   "primary/bayes_factors": {
     "file": "primary/bayes_factors.csv",
@@ -440,7 +507,7 @@
   "primary/robustness": {
     "file": "primary/robustness.csv",
     "source": "stats/primary/robustness.R",
-    "rows": 20,
+    "rows": 26,
     "columns": [
       "analysis",
       "kind",
@@ -455,9 +522,12 @@
       "restriction",
       "n_games",
       "n_obs",
-      "random_effects"
+      "random_effects",
+      "odds_ratio",
+      "or_lower",
+      "or_upper"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "b6e8c3d-dirty"
   },
   "primary/robustness_restrictions": {
     "file": "primary/robustness_restrictions.csv",
@@ -469,7 +539,7 @@
       "games_excluded",
       "identical"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "b6e8c3d-dirty"
   },
   "secondary/ingroup_advantage": {
     "file": "secondary/ingroup_advantage.csv",

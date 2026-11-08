@@ -18,7 +18,10 @@
 #
 # and three are additions:
 #
-#   complete_games      games that kept all nine players
+#   complete_games      games that kept all nine players; H3a, H3b and H3c
+#                       are refit on them too, so that the SI's figures of
+#                       the intact games (report/figures/intact_games.py)
+#                       can mark every test with a test on the games drawn
 #   tangram_set         tangram set as a covariate (balanced within condition,
 #                       so a sensitivity analysis rather than a primary term)
 #   late_arrivals       H4 with late answers dropped instead of counted as
@@ -245,6 +248,141 @@ note_restriction(
   length(complete),
   isTRUE(rr_complete$identical)
 )
+
+# The H3 tests on the same games. The restriction concerns Phase 2 attrition
+# and the H3 tests Phase 1, so this is the same-games companion of the reruns
+# above rather than a check of the H3 conclusions: the SI's figures of the
+# intact games mark every test with a test on the games they draw. The models
+# are those of h3a.R, h3b.R and h3c.R.
+cat("\n=== H3 on the complete nine-player games ===\n")
+h3a_complete <- fit_h3a(gs |> filter(gameId %in% complete))
+if (
+  !is.null(h3a_complete$contrasts) &&
+    all(table(h3a_complete$data$condition) >= 2)
+) {
+  cat(sprintf("\nH3a on %d games:\n", nrow(h3a_complete$data)))
+  print(knitr::kable(
+    bind_rows(
+      contrast_table(fit_h3a(gs)$contrasts, "primary"),
+      contrast_table(h3a_complete$contrasts, "complete nine-player games")
+    ),
+    digits = 3
+  ))
+  add_rows(tidy_contrasts(
+    h3a_complete$contrasts,
+    "h3a",
+    restriction = "complete_games",
+    n_games = nrow(h3a_complete$data)
+  ))
+} else {
+  cat("\nH3a: too few games per condition under this restriction; skipping.\n")
+}
+
+h3b_complete <- fit_h3b(within_group_block_means(
+  within_group_means |> filter(gameId %in% complete),
+  phase = 1,
+  conditions = SOCIAL_CONDITIONS
+))
+h3b_complete_rows <- function(contrast, model, data, analysis, label, note) {
+  if (is.null(contrast)) {
+    cat(sprintf("\n%s not fit under this restriction: %s\n", label, note))
+    return(tibble())
+  }
+  cat(sprintf(
+    "\n%s on %d games (%s):\n",
+    label,
+    n_distinct(data$gameId),
+    random_effects_structure(model)
+  ))
+  print(knitr::kable(contrast_table(contrast, "complete nine-player games"), digits = 3))
+  tidy_contrasts(
+    contrast,
+    analysis,
+    restriction = "complete_games",
+    n_games = n_distinct(data$gameId),
+    n_obs = nrow(data),
+    random_effects = random_effects_structure(model)
+  )
+}
+add_rows(h3b_complete_rows(
+  h3b_complete$contrast,
+  h3b_complete$model,
+  h3b_complete$data,
+  "h3b_rate",
+  "H3b rate",
+  h3b_complete$note
+))
+add_rows(h3b_complete_rows(
+  h3b_complete$block_contrast,
+  h3b_complete$block_model,
+  h3b_complete$block_data,
+  "h3b_block3",
+  sprintf("H3b block %d", H3B_BLOCK),
+  h3b_complete$block_note
+))
+
+# The three H3c models, their formulas as in h3c.R: the two word-level
+# logistic models with a per-description intercept, and the linear model of
+# mean word frequency without one. The reference level is social_mixed, so
+# the coefficient is social_first minus social_mixed.
+p1_complete <- final_phase1_properties(
+  final_props |> filter(gameId %in% complete),
+  SOCIAL_CONDITIONS
+)
+h3c_complete_rows <- function(data, outcome, analysis, label, family = NULL) {
+  if (!has_rows(data) || n_distinct(data$condition) < 2) {
+    cat(sprintf("\n%s: too few data under this restriction; skipping.\n", label))
+    return(tibble())
+  }
+  cat(sprintf(
+    "\n%s on %d games (%d observations):\n",
+    label,
+    n_distinct(data$gameId),
+    nrow(data)
+  ))
+  f <- as.formula(sprintf(
+    "%s ~ condition + (1 | gameId) + (1 | group) + (1 | playerId) + (1 | target)%s",
+    outcome,
+    if (is.null(family)) "" else " + (1 | descriptionId)"
+  ))
+  m <- fit_progressively(f, data = data, family = family)
+  if (!inherits(m, c("lmerMod", "glmerMod"))) {
+    cat(sprintf("%s did not converge under this restriction.\n", label))
+    return(tibble())
+  }
+  rows <- tidy_coefficients(
+    m,
+    analysis,
+    terms = "conditionsocial_first",
+    restriction = "complete_games",
+    n_games = n_distinct(data$gameId)
+  )
+  print(knitr::kable(
+    rows |> select(term, estimate, lower, upper, p_value, odds_ratio, random_effects),
+    digits = 3
+  ))
+  rows
+}
+add_rows(h3c_complete_rows(
+  word_level_measure(p1_complete, "n_concrete", "is_concrete"),
+  "is_concrete",
+  "h3c_concreteness",
+  "H3c concreteness",
+  family = binomial
+))
+add_rows(h3c_complete_rows(
+  word_level_measure(p1_complete, "n_unique_words", "is_unique"),
+  "is_unique",
+  "h3c_uniqueness",
+  "H3c lexical uniqueness",
+  family = binomial
+))
+add_rows(h3c_complete_rows(
+  p1_complete |> filter(!is.na(mean_zipf_freq)),
+  "mean_zipf_freq",
+  "h3c_word_frequency",
+  "H3c word frequency"
+))
 
 # ── Phase 2 roster size ───────────────────────────────────────────────────
 roster <- games |>

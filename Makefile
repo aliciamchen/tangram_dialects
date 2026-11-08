@@ -169,7 +169,8 @@ ESTIMATES = \
   $(ESTIMATES_DIR)/secondary/specificity_vs_social_accuracy.csv \
   $(ESTIMATES_DIR)/secondary/social_accuracy_trend.csv \
   $(ESTIMATES_DIR)/secondary/phase2_length.csv \
-  $(ESTIMATES_DIR)/secondary/utterance_properties.csv
+  $(ESTIMATES_DIR)/secondary/utterance_properties.csv \
+  $(ESTIMATES_DIR)/exploratory/social_phase2_specificity.csv
 
 GAMES = $(TABLES_DIR)/games.csv
 PLAYERS = $(TABLES_DIR)/players.csv
@@ -190,7 +191,7 @@ $(ESTIMATES_DIR)/primary/h3a.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv
 $(ESTIMATES_DIR)/primary/h3b.csv: $(WITHIN_GROUP_MEANS)
 $(ESTIMATES_DIR)/primary/h3c.csv: $(FINAL_PROPERTIES)
 $(ESTIMATES_DIR)/primary/h4.csv: $(TRIALS) $(SOCIAL_GUESSES) $(GAMES)
-$(ESTIMATES_DIR)/primary/robustness.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv $(ESTIMATES_DIR)/primary/h4.csv $(UTTERANCES) $(PLAYERS)
+$(ESTIMATES_DIR)/primary/robustness.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv $(ESTIMATES_DIR)/primary/h4.csv $(UTTERANCES) $(PLAYERS) $(MODEL_INPUTS_DIR)/within_group_block_means.csv $(FINAL_PROPERTIES)
 $(ESTIMATES_DIR)/primary/bayes_factors.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv $(ESTIMATES_DIR)/primary/h4.csv
 $(ESTIMATES_DIR)/secondary/semantic_change.csv: $(MEASURES_DIR)/phase_change_similarities.csv $(GAMES)
 $(ESTIMATES_DIR)/secondary/phase2_accuracy.csv: $(TRIALS) $(GAMES)
@@ -199,6 +200,7 @@ $(ESTIMATES_DIR)/secondary/specificity_vs_social_accuracy.csv: $(ESTIMATES_DIR)/
 $(ESTIMATES_DIR)/secondary/social_accuracy_trend.csv: $(SOCIAL_GUESSES) $(GAMES)
 $(ESTIMATES_DIR)/secondary/phase2_length.csv: $(UTTERANCES) $(GAMES)
 $(ESTIMATES_DIR)/secondary/utterance_properties.csv: $(FINAL_PROPERTIES)
+$(ESTIMATES_DIR)/exploratory/social_phase2_specificity.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv $(PLAYERS) $(GAMES)
 
 $(ESTIMATES_DIR)/%.csv: stats/%.R $(R_COMMON)
 	Rscript $<

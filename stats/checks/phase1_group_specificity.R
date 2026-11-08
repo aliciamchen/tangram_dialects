@@ -14,25 +14,52 @@
 #
 # Writes results/estimates/checks/phase1_group_specificity.csv: one
 # row per game with the coefficient, its standard error, whether the fit sat
-# at a variance boundary, the permutation p-value and whether the game is in
-# the shared-Phase-1 conditions.
+# at a variance boundary, the permutation p-value, the mean, SD and central
+# 95% range of the permuted coefficients, and whether the game is in the
+# shared-Phase-1 conditions.
 
 source(here::here("stats", "config.R"))
 list2env(load_tables(), envir = globalenv())
 
 p1_pairwise <- pairwise_sim |> filter(window == "phase1_final")
 if (!has_rows(p1_pairwise)) {
-  stop("No Phase 1 final pairwise similarities; run the measures step first.", call. = FALSE)
+  stop(
+    "No Phase 1 final pairwise similarities; run the measures step first.",
+    call. = FALSE
+  )
 }
 
 gs_cached <- compute_group_specificity(p1_pairwise, cache_dir)
 gs_results <- gs_cached$gs_results
 perm_results <- gs_cached$perm_results
 if (!has_rows(gs_results)) {
-  gs_results <- tibble(gameId = character(), coefficient = numeric(), std_error = numeric(), singular = logical())
+  gs_results <- tibble(
+    gameId = character(),
+    coefficient = numeric(),
+    std_error = numeric(),
+    singular = logical()
+  )
 }
 if (!has_rows(perm_results)) {
-  perm_results <- tibble(gameId = character(), p_value = numeric(), perm_mean = numeric(), perm_sd = numeric())
+  perm_results <- tibble(
+    gameId = character(),
+    p_value = numeric(),
+    perm_mean = numeric(),
+    perm_sd = numeric()
+  )
+}
+# The central 95% of each game's permuted coefficients, the null range the
+# permutation figure draws behind the observed coefficient
+if ("perm_coefs" %in% names(perm_results)) {
+  perm_results <- perm_results |>
+    mutate(
+      perm_lower = map_dbl(perm_coefs, \(v) {
+        quantile(v, 0.025, na.rm = TRUE, names = FALSE)
+      }),
+      perm_upper = map_dbl(perm_coefs, \(v) {
+        quantile(v, 0.975, na.rm = TRUE, names = FALSE)
+      })
+    )
 }
 
 # Every real game keeps its row; a game without an estimable coefficient or a
@@ -45,7 +72,12 @@ gs_by_game <- games |>
     by = "gameId"
   ) |>
   left_join(
-    perm_results |> select(gameId, p_value, any_of(c("perm_mean", "perm_sd"))),
+    perm_results |>
+      select(
+        gameId,
+        p_value,
+        any_of(c("perm_mean", "perm_sd", "perm_lower", "perm_upper"))
+      ),
     by = "gameId"
   ) |>
   mutate(
@@ -59,13 +91,19 @@ print(knitr::kable(gs_by_game, digits = 4))
 n_perm_all <- sum(!is.na(gs_by_game$p_value))
 n_sig_all <- sum(gs_by_game$p_value < 0.05, na.rm = TRUE)
 n_perm_shared <- sum(!is.na(gs_by_game$p_value) & gs_by_game$shared_phase1)
-n_sig_shared <- sum(gs_by_game$p_value < 0.05 & gs_by_game$shared_phase1, na.rm = TRUE)
+n_sig_shared <- sum(
+  gs_by_game$p_value < 0.05 & gs_by_game$shared_phase1,
+  na.rm = TRUE
+)
 cat(sprintf(
   paste(
     "\nPhase 1 group-specificity above the permutation null (p < .05):",
     "%d of %d games in all conditions; %d of %d in the three shared-Phase-1 conditions.\n"
   ),
-  n_sig_all, n_perm_all, n_sig_shared, n_perm_shared
+  n_sig_all,
+  n_perm_all,
+  n_sig_shared,
+  n_perm_shared
 ))
 if ("singular" %in% names(gs_by_game)) {
   cat(sprintf(
@@ -73,7 +111,8 @@ if ("singular" %in% names(gs_by_game)) {
       "%d of %d per-game fits sat at a variance boundary (the tangram or",
       "speaker-pair variance estimated at zero); their estimates are kept.\n"
     ),
-    sum(gs_by_game$singular %in% TRUE), sum(is.finite(gs_by_game$coefficient))
+    sum(gs_by_game$singular %in% TRUE),
+    sum(is.finite(gs_by_game$coefficient))
   ))
 }
 
@@ -82,15 +121,31 @@ summarise_gs <- function(d) {
     summarise(
       games = n(),
       estimable = sum(is.finite(coefficient)),
-      mean_specificity = if (any(is.finite(coefficient))) mean(coefficient[is.finite(coefficient)]) else NA_real_,
-      median_specificity = if (any(is.finite(coefficient))) median(coefficient[is.finite(coefficient)]) else NA_real_,
+      mean_specificity = if (any(is.finite(coefficient))) {
+        mean(coefficient[is.finite(coefficient)])
+      } else {
+        NA_real_
+      },
+      median_specificity = if (any(is.finite(coefficient))) {
+        median(coefficient[is.finite(coefficient)])
+      } else {
+        NA_real_
+      },
       .groups = "drop"
     )
 }
 cat("\nDescriptive group-specificity summaries by condition:\n")
-print(knitr::kable(gs_by_game |> group_by(condition) |> summarise_gs(), digits = 4))
-cat("\nShared Phase 1 procedure, pooled (a description, not a pass/fail test):\n")
-print(knitr::kable(gs_by_game |> filter(shared_phase1) |> summarise_gs(), digits = 4))
+print(knitr::kable(
+  gs_by_game |> group_by(condition) |> summarise_gs(),
+  digits = 4
+))
+cat(
+  "\nShared Phase 1 procedure, pooled (a description, not a pass/fail test):\n"
+)
+print(knitr::kable(
+  gs_by_game |> filter(shared_phase1) |> summarise_gs(),
+  digits = 4
+))
 
 write_estimates(
   gs_by_game,
