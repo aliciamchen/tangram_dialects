@@ -491,6 +491,11 @@ def draw_columns(
         r = table[(table["level"] == level) & (table["condition"] == condition)]
         s = table[(table["level"] == "condition") & (table["condition"] == condition)]
         draw_column(ax, i, r["value"], None if s.empty else s.iloc[0], CONDITION_COLORS[condition], point, jitter, rng, half)
+    condition_ticks(ax, conditions)
+
+
+def condition_ticks(ax, conditions=CONDITION_ORDER) -> None:
+    """The condition names as the tick labels of a column per condition, each on two lines broken at its space or its hyphen."""
     ax.set_xticks(range(len(conditions)))
     ax.set_xticklabels([CONDITION_LABELS[c].replace(" ", "\n", 1).replace("-", "-\n", 1) for c in conditions])
     ax.set_xlim(-0.6, len(conditions) - 0.4)

@@ -141,6 +141,7 @@ MASKED_NODE = dict(s=70, facecolors=MASKED_FACE, linewidths=1.8, linestyles=(0, 
 NETWORK_EDGE = dict(color=INK, alpha=0.4, linewidth=0.9, solid_capstyle="round")
 # Stacked shares of one series: the alpha of the series color for each category in order
 STACK_ALPHAS = [1.0, 0.6, 0.3, 0.1]
+STACK_DIVIDER = dict(color="white", linewidth=0.6)  # the line between two stacked categories
 # A player's time in the game on the attrition timelines: a bar in the original group's
 # color from the first block to the trial after which the server removed the player, or
 # to the end of the game, with a mark in ink at a removed player's end for the reason

@@ -46,10 +46,10 @@ from report.plot_style import (
     CONDITION_ORDER,
     GAME_POINT,
     STACK_ALPHAS,
+    STACK_DIVIDER,
     STACK_PANEL_AXES,
 )
 
-DIVIDER = dict(color="white", linewidth=0.6)  # the line between two stacked categories
 BORROWED = ["both", "other"]  # the categories that use another group's words
 LATE_BLOCKS = (10, 12)  # the final three blocks of Phase 2, the per-game panel's window
 GAME_JITTER = (0.18, 0.0)  # of a column's width; the shares are not jittered up and down
@@ -89,7 +89,7 @@ def plot(df: pd.DataFrame) -> dict:
             ax.fill_between(blocks, bottom.to_numpy(), (bottom + share).to_numpy(), color=CONDITION_COLORS[condition],
                             alpha=alpha, linewidth=0, zorder=1)
             if i:
-                ax.plot(blocks, bottom.to_numpy(), zorder=2, **DIVIDER)
+                ax.plot(blocks, bottom.to_numpy(), zorder=2, **STACK_DIVIDER)
             bottom = bottom + share
         ax.set_xticks(blocks)
         ax.set_xlim(blocks[0], blocks[-1])

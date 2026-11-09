@@ -54,6 +54,7 @@ from report.plot_style import (
     REFERENCE_GRAY,
     SMALL_SIZE,
     STACK_ALPHAS,
+    STACK_DIVIDER,
 )
 
 LATE_BLOCKS = (10, 12)  # the final three blocks of Phase 2, the window the fates are read over
@@ -68,7 +69,6 @@ BAR_HALF = 0.31  # half a bar's width, of a column
 MIN_SHARE_FOR_TEXT = 0.04  # a segment shorter than this carries no share
 LABEL_GAP = 0.2  # the least distance between two fate labels, as a share of the axis
 LEADER = dict(color=REFERENCE_GRAY, linewidth=0.5, clip_on=False)  # the line from a fate's label to its segment
-DIVIDER = dict(color="white", linewidth=0.6)  # the line between two stacked fates
 MARGINS = dict(left=0.62, right=2.0, top=0.12, bottom=0.42)  # the y label, the fate labels, nothing, the condition names
 
 
@@ -112,7 +112,7 @@ def plot(df: pd.DataFrame):
             face = dict(color=ABSENT) if fate == "gone" else dict(color=CONDITION_COLORS[condition], alpha=STACK_ALPHAS[j])
             ax.bar(i, share, bottom=bottom, width=2 * BAR_HALF, linewidth=0, zorder=1, **face)
             if j:
-                ax.plot([i - BAR_HALF, i + BAR_HALF], [bottom] * 2, zorder=2, **DIVIDER)
+                ax.plot([i - BAR_HALF, i + BAR_HALF], [bottom] * 2, zorder=2, **STACK_DIVIDER)
             if share >= MIN_SHARE_FOR_TEXT:
                 ax.text(i, bottom + share / 2, f"{100 * share:.0f}%", ha="center", va="center", fontsize=NOTE_SIZE,
                         color="white" if j == 0 else INK, zorder=3)
