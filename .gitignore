@@ -29,8 +29,6 @@ backups/
 reviews/
 # The author's private exploratory analyses, kept in their own local git repository
 explore/
-# Old raw-export layout
-/data/raw/
 # Writing projects (each an Overleaf project mirrored through Dropbox)
 writing/
 *.ai
@@ -46,9 +44,6 @@ data/payments/
 data/old_pilots/
 full-sample-todos.md
 decisions.md
-
-# Local session state written by the retired operations/session.py
-operations/.sessions/
 
 # Admin password and tajriba service token; see experiment/.empirica/empirica.toml.example
 experiment/.empirica/empirica.toml
