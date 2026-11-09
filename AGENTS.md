@@ -10,8 +10,6 @@ A nine-player Empirica reference game for studying lexical variation and social 
 
 ```bash
 uv sync && uv run python <script>     # Python; never bare python or pip
-Rscript -e 'renv::restore()'          # R
-cd experiment && npm install          # Empirica app and Playwright
 make help                             # data, test, estimates, report, sync, and the finer steps underneath (extract, combine, process, measures, model-inputs, bayes-factors, macros, figures, smoke, payments)
 make test DATASET=full                # integrity suite plus the Python and R unit tests
 make estimates && make report             # fit the analysis scripts that are out of date, then write the macros and figures into results/
@@ -52,8 +50,6 @@ cd experiment && npm run test:unit    # server unit tests; Playwright only throu
 
 ## Sources of truth
 
-- Game configuration is `experiment/shared/constants.js` (`experiment/tests/helpers/constants.ts` re-exports it and `operations/game_constants.py` parses it); treatments are in `experiment/.empirica/treatments.yaml`; game logic is `experiment/server/src/callbacks.js` with pure modules beside it, every callback wrapped in `guard()`.
-- The data pipeline is `preprocessing/`: `dataset_paths.py` defines the dataset and results layout (mirrored in `stats/config.R`) and `process_data.py` runs the steps, each a module run with `python -m preprocessing.<name>`. The models are R scripts in `stats/<family>/<name>.R`, one per analysis, each sourcing `stats/config.R` and the helpers in `stats/R/` (tests in `stats/tests/`) and writing a tidy estimates table to `results/estimates/<family>/<name>.csv`; the Makefile lists each table's dependencies. `report/inferential.py` formats the estimates into the inferential macros, `report/descriptives.py` writes the descriptive ones, `report/figures/` holds one module per figure, `report/plot_style.py` is the one description of how the figures look and `report/stats_tex.py` the one macro writer and formatting rules; `writing/preregistration/stats/` is frozen with the preregistration.
 - The article's figures are the Illustrator exports in `figures/paper_files/`, which the author assembles from the single-panel PDFs the figure modules write to `results/plots/`; `make sync` copies the macros and the exports into the manuscript's project, and the panels never go there. The conventions are in `.claude/rules/figures.md`.
 - The per-dataset inputs (`runs.txt`, `exclude_games.txt`, `participant_exclusions.csv`, `integrity_exceptions.csv`, `payment_adjustments.csv`) are defined in `.claude/rules/data-pipeline.md`.
 - Fetch current library documentation with Context7 for R packages, Python libraries, Empirica and Playwright instead of working from memory.
