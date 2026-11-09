@@ -1,5 +1,6 @@
 # Design-matched simulations for the shared multiple-membership speaker
-# intercept (stats/R/multimembership.R).
+# intercept (simulations/multimembership.R), the structure the preregistered
+# pair model in stats/R/group_specificity.R was chosen against.
 #
 #   Rscript simulations/simulate_mm_speaker.R [--reps N] [--out FILE]
 #
@@ -32,6 +33,7 @@
 
 suppressPackageStartupMessages({
   source(here::here("stats", "config.R"))
+  source(here::here("simulations", "multimembership.R"))
 })
 
 # ── Design and truth ────────────────────────────────────────────────────────
@@ -181,10 +183,15 @@ fit_mm <- function(d) {
 # them too large.
 fit_mm_pair <- function(d) {
   d <- as.data.frame(d)
-  d$participantPair <- paste(pmin(d$speaker1, d$speaker2),
-                             pmax(d$speaker1, d$speaker2))
+  d$participantPair <- paste(
+    pmin(d$speaker1, d$speaker2),
+    pmax(d$speaker1, d$speaker2)
+  )
   model <- lmer_multimember(
-    similarity ~ sameGroup + (1 | target) + (1 | participantPair) + (1 | speaker),
+    similarity ~ sameGroup +
+      (1 | target) +
+      (1 | participantPair) +
+      (1 | speaker),
     data = d,
     memberships = list(speaker = speaker_pair_weights(d$speaker1, d$speaker2))
   )
@@ -441,19 +448,19 @@ main <- function(reps = 300, studies = 200, out = NULL, seed = 2026) {
   fitters <- list(mm = fit_mm, mmpair = fit_mm_pair)
   stage2 <- bind_rows(lapply(SCENARIOS, function(sc) {
     bind_rows(lapply(names(fitters), function(fn) {
-    cat("  ", sc$name, " / ", fn, "...\n", sep = "")
-    run_weight_study(sc, studies, fitter = fitters[[fn]]) |>
-      summarise(
-        scenario = sc$name,
-        structure = fn,
-        studies = sum(is.finite(estimate)),
-        mean_estimate = mean(estimate, na.rm = TRUE),
-        emp_sd = sd(estimate, na.rm = TRUE),
-        mean_se = mean(se, na.rm = TRUE),
-        se_ratio = mean(se, na.rm = TRUE) / sd(estimate, na.rm = TRUE),
-        coverage = mean(covered, na.rm = TRUE),
-        mean_weight_cv = mean(weight_cv, na.rm = TRUE)
-      )
+      cat("  ", sc$name, " / ", fn, "...\n", sep = "")
+      run_weight_study(sc, studies, fitter = fitters[[fn]]) |>
+        summarise(
+          scenario = sc$name,
+          structure = fn,
+          studies = sum(is.finite(estimate)),
+          mean_estimate = mean(estimate, na.rm = TRUE),
+          emp_sd = sd(estimate, na.rm = TRUE),
+          mean_se = mean(se, na.rm = TRUE),
+          se_ratio = mean(se, na.rm = TRUE) / sd(estimate, na.rm = TRUE),
+          coverage = mean(covered, na.rm = TRUE),
+          mean_weight_cv = mean(weight_cv, na.rm = TRUE)
+        )
     }))
   }))
   print(as.data.frame(

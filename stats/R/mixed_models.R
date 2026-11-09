@@ -370,22 +370,6 @@ simplification_log <- function(model) {
 # The grouping factors that carry a random intercept in a formula (or a fitted
 # merMod). Used to check that simplification retained every specified
 # intercept term.
-re_intercept_groups <- function(x) {
-  f <- if (inherits(x, "merMod")) formula(x) else x
-  bars <- .re_findbars(f)
-  keep <- vapply(
-    bars,
-    function(bar) {
-      lhs <- bar[[2]]
-      # An intercept is present unless the left-hand side removes it with 0 or -1
-      txt <- paste(deparse(lhs), collapse = "")
-      !grepl("(^|\\+)\\s*0\\s*(\\+|$)|-\\s*1", txt)
-    },
-    logical(1)
-  )
-  unique(vapply(bars[keep], function(bar) deparse(bar[[3]]), character(1)))
-}
-
 random_effects_structure <- function(model) {
   attr(model, "random_effects_structure")
 }

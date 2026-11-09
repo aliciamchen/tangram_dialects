@@ -137,6 +137,22 @@ check(
     grepl("intercepts only", random_effects_structure(m_flat))
 )
 check("the returned model still has random effects", inherits(m_flat, "merMod"))
+
+# The grouping factors of a formula or fit that carry a random intercept: an
+# intercept is present unless the term's left-hand side removes it with 0 or -1
+re_intercept_groups <- function(x) {
+  f <- if (inherits(x, "merMod")) formula(x) else x
+  bars <- .re_findbars(f)
+  keep <- vapply(
+    bars,
+    function(bar) {
+      txt <- paste(deparse(bar[[2]]), collapse = "")
+      !grepl("(^|\\+)\\s*0\\s*(\\+|$)|-\\s*1", txt)
+    },
+    logical(1)
+  )
+  unique(vapply(bars[keep], function(bar) deparse(bar[[3]]), character(1)))
+}
 check(
   "simplification drops slopes but never an intercept term",
   setequal(re_intercept_groups(m_flat), c("subj", "item")) &&
@@ -320,18 +336,19 @@ check(
   "the informative term is never reported as zero",
   !"subj (Intercept)" %in% zc
 )
-check(
-  "report_variance_components prints the boundary terms or says there are none",
-  {
-    out <- capture.output(report_variance_components(mz))
-    if (length(zc) > 0) {
-      any(grepl(zc[1], out, fixed = TRUE))
-    } else {
-      any(grepl("No variance component", out))
-    }
+check("report_variance_components prints the boundary terms or says there are none", {
+  out <- capture.output(report_variance_components(mz))
+  if (length(zc) > 0) {
+    any(grepl(zc[1], out, fixed = TRUE))
+  } else {
+    any(grepl("No variance component", out))
   }
-)
+})
 check(
   "a model without random effects has no variance components",
-  length(zero_variance_components(lm(y ~ 1, data = data.frame(y = rnorm(10))))) == 0
+  length(zero_variance_components(lm(
+    y ~ 1,
+    data = data.frame(y = rnorm(10))
+  ))) ==
+    0
 )

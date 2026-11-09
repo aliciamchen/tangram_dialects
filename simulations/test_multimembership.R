@@ -1,5 +1,5 @@
 # Tests for the shared multiple-membership speaker intercept
-# (stats/R/multimembership.R).
+# (simulations/multimembership.R): Rscript simulations/test_multimembership.R
 #
 # The design-matched simulation study that checks convergence, ordering
 # invariance, and interval calibration at scale is
@@ -7,6 +7,7 @@
 
 if (!exists("lmer_multimember")) {
   source(here::here("stats", "config.R"))
+  source(here::here("simulations", "multimembership.R"))
 }
 if (!exists("check")) {
   source(here::here("stats", "tests", "check.R"))
@@ -178,95 +179,4 @@ sep <- function(d) {
 check(
   "the separate-intercepts model it replaces is not ordering invariant",
   abs(fixef(sep(pw))[["sameGroup"]] - fixef(sep(swapped))[["sameGroup"]]) > 1e-8
-)
-
-# ── fit_group_specificity_mm ────────────────────────────────────────────────
-
-gs_mm <- fit_group_specificity_mm(pw)
-check(
-  "one row per game with a coefficient, standard error, and speaker count",
-  nrow(gs_mm) == 1 &&
-    gs_mm$n_speakers == 9 &&
-    is.finite(gs_mm$coefficient) &&
-    is.finite(gs_mm$std_error) &&
-    abs(gs_mm$coefficient - fixef(m_pw)[["sameGroup"]]) < 1e-8
-)
-check(
-  "a game with no between-group pairs is skipped, not fitted",
-  nrow(fit_group_specificity_mm(pw |> filter(sameGroup == 1))) == 0
-)
-check("a failing game is returned with a note rather than dropped silently", {
-  broken <- pw
-  broken$similarity <- NA_real_
-  out <- fit_group_specificity_mm(broken)
-  nrow(out) == 1 && is.na(out$coefficient) && !is.na(out$note)
-})
-
-# ── Incomplete endpoint coverage ────────────────────────────────────────────
-#
-# In a real game some speakers describe fewer tangrams, so pairs are missing
-# unevenly. The fit must still return a usable estimate rather than error.
-
-sparse_pw <- pw[!(pw$speaker1 == "s1" & pw$target %in% targets[1:5]), ]
-sparse_pw <- sparse_pw[
-  !(sparse_pw$speaker2 == "s1" &
-    sparse_pw$target %in% targets[1:5]),
-]
-gs_sparse <- fit_group_specificity_mm(sparse_pw)
-check(
-  "a speaker with sparse endpoint coverage still yields an estimate",
-  nrow(gs_sparse) == 1 &&
-    is.na(gs_sparse$note) &&
-    is.finite(gs_sparse$coefficient) &&
-    is.finite(gs_sparse$std_error)
-)
-check("a speaker dropped entirely leaves the remaining speakers indexed", {
-  dropped <- pw[pw$speaker1 != "s1" & pw$speaker2 != "s1", ]
-  out <- fit_group_specificity_mm(dropped)
-  nrow(out) == 1 && out$n_speakers == 8
-})
-
-# ── The optional pair-level intercept ───────────────────────────────────────
-#
-# Whether to adopt it is a preregistration decision, informed by
-# simulations/simulate_mm_speaker.R; these checks only pin its mechanics.
-
-gs_pair <- fit_group_specificity_mm(pw, pair_term = TRUE)
-check(
-  "the pair term returns an estimate with the same contract",
-  nrow(gs_pair) == 1 && is.finite(gs_pair$coefficient) &&
-    is.finite(gs_pair$std_error) && is.na(gs_pair$note)
-)
-check(
-  "the pair term leaves the point estimate essentially unchanged",
-  abs(gs_pair$coefficient - gs_mm$coefficient) < 0.02
-)
-check(
-  "the pair term is what changes the standard error, not the estimate",
-  gs_pair$std_error >= gs_mm$std_error
-)
-check(
-  "the pair id is unordered, so the fit stays ordering invariant",
-  {
-    a <- fit_group_specificity_mm(pw, pair_term = TRUE)
-    b <- fit_group_specificity_mm(swapped, pair_term = TRUE)
-    abs(a$coefficient - b$coefficient) < 1e-8 &&
-      abs(a$std_error - b$std_error) < 1e-8
-  }
-)
-check(
-  "the structure switch reaches the pair term",
-  {
-    viaswitch <- fit_group_specificity(
-      pw, speaker_structure = "multimembership_pair"
-    )
-    abs(viaswitch$std_error - gs_pair$std_error) < 1e-10
-  }
-)
-check(
-  "an unknown speaker structure is rejected",
-  inherits(
-    try(fit_group_specificity(pw, speaker_structure = "nonsense"), silent = TRUE),
-    "try-error"
-  )
 )

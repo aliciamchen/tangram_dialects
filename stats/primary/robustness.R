@@ -229,7 +229,7 @@ if (!has_rows(gs_adjusted)) {
 }
 
 # ── Complete nine-player games ────────────────────────────────────────────
-complete <- complete_games(players, games)
+complete <- complete_games(games)
 cat(sprintf(
   "\n%d of %d games kept all nine players.\n",
   length(complete),
@@ -294,7 +294,10 @@ h3b_complete_rows <- function(contrast, model, data, analysis, label, note) {
     n_distinct(data$gameId),
     random_effects_structure(model)
   ))
-  print(knitr::kable(contrast_table(contrast, "complete nine-player games"), digits = 3))
+  print(knitr::kable(
+    contrast_table(contrast, "complete nine-player games"),
+    digits = 3
+  ))
   tidy_contrasts(
     contrast,
     analysis,
@@ -321,68 +324,47 @@ add_rows(h3b_complete_rows(
   h3b_complete$block_note
 ))
 
-# The three H3c models, their formulas as in h3c.R: the two word-level
-# logistic models with a per-description intercept, and the linear model of
-# mean word frequency without one. The reference level is social_mixed, so
-# the coefficient is social_first minus social_mixed.
+# The three H3c models of h3c.R, fit by fit_h3c() on the same games. The
+# reference level is social_mixed, so the coefficient is social_first minus
+# social_mixed.
 p1_complete <- final_phase1_properties(
   final_props |> filter(gameId %in% complete),
   SOCIAL_CONDITIONS
 )
-h3c_complete_rows <- function(data, outcome, analysis, label, family = NULL) {
-  if (!has_rows(data) || n_distinct(data$condition) < 2) {
-    cat(sprintf("\n%s: too few data under this restriction; skipping.\n", label))
-    return(tibble())
+for (measure in names(H3C_MEASURES)) {
+  fit <- fit_h3c(p1_complete, measure)
+  label <- paste("H3c", tolower(fit$label))
+  if (is.null(fit$model)) {
+    cat(sprintf(
+      "\n%s: too few data under this restriction; skipping.\n",
+      label
+    ))
+    next
+  }
+  if (!inherits(fit$model, c("lmerMod", "glmerMod"))) {
+    cat(sprintf("%s did not converge under this restriction.\n", label))
+    next
   }
   cat(sprintf(
     "\n%s on %d games (%d observations):\n",
     label,
-    n_distinct(data$gameId),
-    nrow(data)
+    n_distinct(fit$data$gameId),
+    nrow(fit$data)
   ))
-  f <- as.formula(sprintf(
-    "%s ~ condition + (1 | gameId) + (1 | group) + (1 | playerId) + (1 | target)%s",
-    outcome,
-    if (is.null(family)) "" else " + (1 | descriptionId)"
-  ))
-  m <- fit_progressively(f, data = data, family = family)
-  if (!inherits(m, c("lmerMod", "glmerMod"))) {
-    cat(sprintf("%s did not converge under this restriction.\n", label))
-    return(tibble())
-  }
-  rows <- tidy_coefficients(
-    m,
-    analysis,
+  h3c_rows <- tidy_coefficients(
+    fit$model,
+    measure,
     terms = "conditionsocial_first",
     restriction = "complete_games",
-    n_games = n_distinct(data$gameId)
+    n_games = n_distinct(fit$data$gameId)
   )
   print(knitr::kable(
-    rows |> select(term, estimate, lower, upper, p_value, odds_ratio, random_effects),
+    h3c_rows |>
+      select(term, estimate, lower, upper, p_value, odds_ratio, random_effects),
     digits = 3
   ))
-  rows
+  add_rows(h3c_rows)
 }
-add_rows(h3c_complete_rows(
-  word_level_measure(p1_complete, "n_concrete", "is_concrete"),
-  "is_concrete",
-  "h3c_concreteness",
-  "H3c concreteness",
-  family = binomial
-))
-add_rows(h3c_complete_rows(
-  word_level_measure(p1_complete, "n_unique_words", "is_unique"),
-  "is_unique",
-  "h3c_uniqueness",
-  "H3c lexical uniqueness",
-  family = binomial
-))
-add_rows(h3c_complete_rows(
-  p1_complete |> filter(!is.na(mean_zipf_freq)),
-  "mean_zipf_freq",
-  "h3c_word_frequency",
-  "H3c word frequency"
-))
 
 # ── Phase 2 roster size ───────────────────────────────────────────────────
 roster <- games |>

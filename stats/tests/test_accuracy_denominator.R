@@ -152,27 +152,11 @@ check(
     s_part$scored == 3 &&
     abs(s_part$accuracy - 1 / 3) < 1e-12
 )
-pes <- participant_exclusion_summary(lt_part)
-check(
-  "participant_exclusion_summary lists the excluded rows by reason and kind",
-  nrow(pes) == 1 &&
-    pes$observations == 1 &&
-    pes$kind == "listener of an excluded speaker" &&
-    pes$exclusionReason == "speaker excluded: adversarial messages"
-)
-check(
-  "participant_exclusion_summary is empty when nothing was excluded",
-  nrow(participant_exclusion_summary(lt)) == 0
-)
 late_summ <- late_arrival_summary(lt, by = NULL)
 check(
   "late arrivals are counted and rated over opportunities",
   late_summ$late_arrivals == 1 && abs(late_summ$late_rate - 0.25) < 1e-12
 )
-check("the sensitivity analysis drops late arrivals instead of scoring them zero", {
-  kept <- drop_late_arrivals(lt)
-  nrow(kept) == 3 && !("p4" %in% kept$playerId)
-})
 
 # ── Social guesses ──────────────────────────────────────────────────────────
 
@@ -219,10 +203,10 @@ check(
   "a social opportunity with no speaker message is excluded",
   !("p5" %in% sg$playerId)
 )
-check("social lateness is assessed with its own flag, not the tangram one", {
-  kept <- drop_late_arrivals(sg, late = lateSocialGuess)
-  nrow(kept) == 3 && !("p4" %in% kept$playerId)
-})
+check(
+  "social lateness is assessed with its own flag, not the tangram one",
+  late_arrival_summary(sg, late = lateSocialGuess, by = NULL)$late_arrivals == 1
+)
 sg_part <- social_guess_trials(
   acc_guesses |>
     mutate(
@@ -236,8 +220,7 @@ check(
   "an excluded participant's own social guess is missing with its reason",
   is.na(sg_part$correct[sg_part$playerId == "p1"]) &&
     sg_part$exclusionReason[sg_part$playerId == "p1"] == "bot-like responses" &&
-    participant_exclusion_summary(sg_part)$kind ==
-      "excluded participant's own" &&
+    sg_part$participantExcluded[sg_part$playerId == "p1"] &&
     sg_part$correct[sg_part$playerId == "p2"] == 0
 )
 

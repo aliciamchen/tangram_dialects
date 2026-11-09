@@ -73,7 +73,7 @@ write_estimates(
 )
 
 # ── Complete nine-player games ────────────────────────────────────────────
-complete <- complete_games(read_table("players.csv"), read_table("games.csv"))
+complete <- complete_games(read_table("games.csv"))
 fit_complete <- fit_game_level(
   gs |> filter(gameId %in% complete),
   outcome = "gs_phase2",

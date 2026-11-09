@@ -101,6 +101,10 @@ require_columns <- function(df, needed, table_name) {
 
 add_group_id <- function(df) mutate(df, group = paste(gameId, originalGroup))
 
+# TRUE where a flag column read from a table is true, whether it came back
+# logical or as text
+as_flag <- function(x) x %in% c(TRUE, "TRUE", "true", "True")
+
 center_block <- function(df) {
   mutate(df, blockNum_c = blockNum - mean(blockNum, na.rm = TRUE))
 }
@@ -378,30 +382,11 @@ response_opportunity_summary <- function(df, by = c("condition", "phaseNum")) {
     )
 }
 
-# The post-hoc participant exclusions present in a coded opportunity frame:
-# rows by reason, distinguishing the excluded participants' own rows from the
-# rows of listeners they spoke to. Empty when nothing was excluded.
-participant_exclusion_summary <- function(df, by = "condition") {
-  if (!has_rows(df) || !"participantExcluded" %in% names(df)) {
-    return(tibble())
-  }
-  by <- intersect(by, names(df))
-  df |>
-    filter(participantExcluded) |>
-    mutate(
-      kind = ifelse(
-        startsWith(exclusionReason, "speaker excluded"),
-        "listener of an excluded speaker",
-        "excluded participant's own"
-      )
-    ) |>
-    count(across(all_of(by)), kind, exclusionReason, name = "observations")
-}
-
 # Late arrivals, reported by condition when any are found. A late answer
-# counts as unsuccessful in the primary coding; this is what the sensitivity
-# analysis below removes. Lateness is outcome-specific, so `late` names the
-# flag for the outcome in hand (lateClick or lateSocialGuess).
+# counts as unsuccessful in the primary coding; the late-arrivals rerun in
+# primary/robustness.R drops them instead. Lateness is outcome-specific, so
+# `late` names the flag for the outcome in hand (lateClick or
+# lateSocialGuess).
 late_arrival_summary <- function(df, late = lateClick, by = "condition") {
   if (!has_rows(df)) {
     return(tibble())
@@ -416,15 +401,6 @@ late_arrival_summary <- function(df, late = lateClick, by = "condition") {
       late_rate = late_arrivals / opportunities,
       .groups = "drop"
     )
-}
-
-# The sensitivity analysis: repeat a primary accuracy comparison with late
-# arrivals dropped rather than counted as unsuccessful.
-drop_late_arrivals <- function(df, late = lateClick) {
-  if (!has_rows(df)) {
-    return(df)
-  }
-  df |> mutate(.late = {{ late }}) |> filter(!.late %in% TRUE) |> select(-.late)
 }
 
 # The speaker of each listener trial is on the row (`speakerId`, from the trio

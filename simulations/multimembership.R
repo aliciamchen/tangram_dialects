@@ -1,4 +1,6 @@
-# Multiple-membership speaker intercept for the pairwise-similarity model.
+# Multiple-membership speaker intercept for the pairwise-similarity model, the
+# structure simulate_mm_speaker.R compares the preregistered pair model
+# (stats/R/group_specificity.R) against. No analysis script uses it.
 #
 # Each observation is a pair of speakers describing the same tangram, so a
 # speaker appears in many rows, sometimes as speaker1 and sometimes as
@@ -24,7 +26,7 @@
 # reproducible from renv.lock by reviewers, and this case (a scalar intercept,
 # exactly two members, fixed equal weights) is small enough to own outright.
 #
-# Tests: stats/tests/test_multimembership.R
+# Tests: Rscript simulations/test_multimembership.R
 # Design-matched simulations: simulations/simulate_mm_speaker.R
 
 suppressPackageStartupMessages({
@@ -215,111 +217,3 @@ mm_fit_diagnostics <- function(model) {
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
 MM_SPEAKER <- "speaker"
-
-#' Per-game group-specificity with the shared multiple-membership speaker
-#' intercept.
-#'
-#' Same contract as fit_group_specificity() in R/group_specificity.R: one row
-#' per game with the same_group coefficient, its standard error, and t value.
-#' Fits that fail are dropped, and the reason is returned in `note` so a game
-#' cannot silently disappear from the game-level regression.
-#' @param pair_term  Add a random intercept for the unordered speaker pair.
-#'   The speaker effects alone only approximate the dependence among
-#'   similarities that share a speaker: two particular speakers can also be
-#'   unusually similar to each other for reasons belonging to neither one.
-#'   The design-matched simulations show what this costs and buys -- with such
-#'   pair-level dependence present, omitting the term leaves 95% intervals
-#'   covering about 86%, and adding it restores about 94%; with no pair
-#'   dependence at all, adding it only makes the intervals slightly
-#'   conservative. Point estimates are unaffected either way, which is exactly
-#'   why the standard errors have to be checked separately.
-fit_group_specificity_mm <- function(
-  pairwise_df,
-  covariates = NULL,
-  pair_term = FALSE,
-  verbose = FALSE
-) {
-  # A typed empty frame, so a window with no games still comes back with the
-  # columns callers select on rather than a zero-column tibble.
-  empty <- tibble(
-    gameId = character(),
-    coefficient = numeric(),
-    std_error = numeric(),
-    t_value = numeric(),
-    n_speakers = integer(),
-    singular = logical(),
-    sd_speaker = numeric(),
-    note = character()
-  )
-  if (!is.data.frame(pairwise_df) || nrow(pairwise_df) == 0) {
-    return(empty)
-  }
-
-  rhs <- paste(c("sameGroup", covariates), collapse = " + ")
-  re <- c(
-    "(1 | target)",
-    if (pair_term) "(1 | speakerPair)",
-    paste0("(1 | ", MM_SPEAKER, ")")
-  )
-  model_formula <- as.formula(
-    paste("similarity ~", rhs, "+", paste(re, collapse = " + "))
-  )
-
-  bind_rows(
-    empty,
-    map_dfr(unique(pairwise_df$gameId), function(gid) {
-      game_data <- as.data.frame(pairwise_df[pairwise_df$gameId == gid, ])
-      # Built here rather than taken from the exported participantPair column
-      # so the id is guaranteed to be unordered whatever the caller passes.
-      game_data$speakerPair <- paste(
-        pmin(game_data$speaker1, game_data$speaker2),
-        pmax(game_data$speaker1, game_data$speaker2)
-      )
-      if (nrow(game_data) < 5) {
-        return(NULL)
-      }
-      if (n_distinct(game_data$sameGroup) < 2) {
-        return(NULL)
-      }
-
-      fit <- tryCatch(
-        {
-          w <- speaker_pair_weights(game_data$speaker1, game_data$speaker2)
-          model <- lmer_multimember(
-            model_formula,
-            game_data,
-            memberships = setNames(list(w), MM_SPEAKER)
-          )
-          coefs <- coef(summary(model))
-          diag <- mm_fit_diagnostics(model)
-          tibble(
-            gameId = gid,
-            coefficient = coefs["sameGroup", "Estimate"],
-            std_error = coefs["sameGroup", "Std. Error"],
-            t_value = coefs["sameGroup", "t value"],
-            n_speakers = nrow(w),
-            singular = diag$singular,
-            sd_speaker = diag$sd_speaker,
-            note = NA_character_
-          )
-        },
-        error = function(e) {
-          if (verbose) {
-            message("Game ", gid, ": ", conditionMessage(e))
-          }
-          tibble(
-            gameId = gid,
-            coefficient = NA_real_,
-            std_error = NA_real_,
-            t_value = NA_real_,
-            n_speakers = NA_integer_,
-            singular = NA,
-            sd_speaker = NA_real_,
-            note = conditionMessage(e)
-          )
-        }
-      )
-      fit
-    })
-  )
-}

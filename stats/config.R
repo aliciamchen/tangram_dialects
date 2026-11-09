@@ -3,10 +3,11 @@
 # Sourcing this file is the whole setup a script needs: it resolves the
 # active dataset's paths, defines the design constants, and sources every
 # helper file in stats/R/ (data preparation, model fitting, group
-# specificity, contrasts, Bayes factors, the estimates writer). The scripts
-# draw nothing and format no statistics: each fits its models and writes
-# tidy estimates tables with write_estimates(); report/inferential.py turns
-# those into the manuscript's macros and report/figures/ draws from them.
+# specificity, contrasts, the H3 fitters, Bayes factors, the estimates
+# writer). The scripts draw nothing and write no macros: each fits its
+# models, prints them, and writes tidy estimates tables with
+# write_estimates(); report/inferential.py turns those into the manuscript's
+# macros and report/figures/ draws from them.
 #
 # Usage (at the top of each stats/<family>/<name>.R):
 #   source(here::here("stats", "config.R"))
@@ -18,21 +19,12 @@ suppressPackageStartupMessages({
 })
 
 # ── Paths ────────────────────────────────────────────────────
-# Every dataset follows the same layout (defined in preprocessing/dataset_paths.py):
-# the hand-written inputs at the top of data/<name>/ and the generated files
-# one level down, in a directory per stage. The scripts read
-#   data/<name>/tables/         the analysis-ready tables
-#   data/<name>/measures/       similarity tables and description properties
-#   data/<name>/model_inputs/   the aggregated tables the models are fit to
-# and write
-#   results/estimates/          the estimates tables, one per script (a dataset
-#                               other than the full sample writes them to data/<name>/results/)
-#   data/<name>/cache/          fitted objects kept between runs
-# The active dataset comes from the DATASET environment variable (default
-# "full").
-
-DEFAULT_DATASET <- "full"
-
+# Every dataset follows the layout defined in preprocessing/dataset_paths.py
+# and described in data/README.md. The scripts read the tables, the measures
+# and the model inputs of the active dataset and write their estimates to
+# results/estimates/ (a dataset other than the full sample writes them to
+# data/<name>/results/) and their fitted objects to data/<name>/cache/. The
+# active dataset comes from the DATASET environment variable (default "full").
 
 DEFAULT_DATASET <- "full"
 
@@ -49,7 +41,10 @@ check_filtered_utterances <- function(dir) {
   messages <- file.path(dir, "messages.csv")
   refuse <- function(detail) {
     stop(
-      "speaker_utterances_filtered.csv in ", dir, " cannot be used: ", detail,
+      "speaker_utterances_filtered.csv in ",
+      dir,
+      " cannot be used: ",
+      detail,
       ". Rerun the filter (`filter_nonreferential.py classify` and `apply`, or ",
       "`make process`) to rebuild it from the current messages.csv.",
       call. = FALSE
@@ -61,8 +56,12 @@ check_filtered_utterances <- function(dir) {
     )
   }
   record <- tryCatch(jsonlite::fromJSON(sidecar), error = function(e) NULL)
-  if (!is.list(record) || !is.character(record$sha256) || !nzchar(record$sha256)) {
-    refuse("its sidecar does not record the sha256 of the messages.csv it was built from")
+  if (
+    !is.list(record) || !is.character(record$sha256) || !nzchar(record$sha256)
+  ) {
+    refuse(
+      "its sidecar does not record the sha256 of the messages.csv it was built from"
+    )
   }
   if (!file.exists(messages)) {
     refuse("messages.csv is missing, so it cannot be checked")
@@ -93,7 +92,11 @@ use_dataset <- function(name = Sys.getenv("DATASET", unset = DEFAULT_DATASET)) {
   model_inputs_dir <<- file.path(dataset_dir, "model_inputs")
   cache_dir <<- file.path(dataset_dir, "cache")
   # The full sample's results are results/; any other dataset keeps its results inside its own data directory.
-  results_dir <<- if (name == DEFAULT_DATASET) here("results") else file.path(dataset_dir, "results")
+  results_dir <<- if (name == DEFAULT_DATASET) {
+    here("results")
+  } else {
+    file.path(dataset_dir, "results")
+  }
   estimates_dir <<- file.path(results_dir, "estimates")
   dir.create(estimates_dir, showWarnings = FALSE, recursive = TRUE)
   dir.create(cache_dir, showWarnings = FALSE, recursive = TRUE)
@@ -116,7 +119,8 @@ use_dataset <- function(name = Sys.getenv("DATASET", unset = DEFAULT_DATASET)) {
   if (name != DEFAULT_DATASET) {
     message(sprintf(
       "Dataset '%s' is not the full sample: the estimates written to %s are not results.",
-      name, estimates_dir
+      name,
+      estimates_dir
     ))
   }
   invisible(name)
@@ -140,8 +144,6 @@ SOCIAL_CONDITIONS <- c("social_mixed", "social_first")
 # restricted to them because in social_first the manipulation precedes Phase 1
 H12_CONDITIONS <- c("refer_separated", "refer_mixed", "social_mixed")
 
-GROUP_ORDER <- c("A", "B", "C")
-
 # The analysis windows compute_measures.py writes on the pairwise similarities.
 # The primary H1/H2 comparison uses the two final windows; phase2_early is
 # descriptive. Named here so a consumer cannot quietly fold one window into
@@ -151,10 +153,6 @@ WINDOW_LABELS <- c(
   phase2_early = "Phase 2 early",
   phase2_final = "Phase 2 final"
 )
-
-# Blocks are 1-indexed in the paper: Phase 1 = 1-6, Phase 2 = 7-12
-PHASE_BOUNDARY <- 6.5
-PHASE2_OFFSET <- 6
 
 # Bayes factors for non-significant planned contrasts (see R/bayes_factors.R
 # and stats/primary/bayes_factors.R): "auto" computes them only when a
@@ -201,7 +199,11 @@ load_fit <- function(name, written_by) {
   path <- file.path(fits_dir(), paste0(name, ".rds"))
   if (!file.exists(path)) {
     stop(
-      sprintf("%s is missing; run `Rscript %s` first (or `make estimates`).", path, written_by),
+      sprintf(
+        "%s is missing; run `Rscript %s` first (or `make estimates`).",
+        path,
+        written_by
+      ),
       call. = FALSE
     )
   }
