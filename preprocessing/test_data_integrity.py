@@ -204,6 +204,7 @@ class TestSchemaValidation:
         required = [
             "gameId", "condition", "tangramSet", "numPlayers",
             "activeGroups", "phase1Blocks", "phase2Blocks",
+            "ranToCompletion", "completeNine",
         ]
         missing = set(required) - set(games.columns)
         assert not missing, f"games.csv missing columns: {missing}"
@@ -242,9 +243,30 @@ class TestSchemaValidation:
         required = [
             "playerId", "gameId", "name", "originalGroup", "originalName",
             "score", "bonus", "isActive", "idleRounds", "playerIndex",
+            "removed", "removalReason", "removedNoFault",
         ]
         missing = set(required) - set(players.columns)
         assert not missing, f"players.csv missing columns: {missing}"
+
+    def test_attrition_columns_follow_their_definitions(self, games, players):
+        """`removed` negates `isActive` and carries a category; a complete nine-player
+        game ran to completion (two or more viable groups) with nine players, none removed."""
+        true = lambda s: s.astype(str).str.lower() == "true"  # noqa: E731
+        removed = true(players["removed"])
+        assert (removed == ~true(players["isActive"])).all()
+        assert (players["removalReason"].notna() == removed).all(), (
+            "every removed player has a removal category and nobody else does"
+        )
+        no_fault = true(players["removedNoFault"])
+        assert set(players.loc[no_fault, "removalReason"]) <= {"group disbanded", "insufficient groups", "game terminated"}
+        roster = players.assign(removed=removed).groupby("gameId")["removed"].agg(["size", "sum"])
+        ran = true(games["ranToCompletion"])
+        active_groups = pd.to_numeric(games["activeGroups"], errors="coerce")
+        assert (ran == (active_groups >= 2).fillna(False).astype(bool)).all()
+        players_in = games["gameId"].map(roster["size"]).fillna(0)
+        removed_in = games["gameId"].map(roster["sum"]).fillna(0)
+        expected = ran & (players_in == 9) & (removed_in == 0)
+        assert (true(games["completeNine"]) == expected).all()
 
     def test_active_players_no_null_in_critical_fields(self, active_players):
         for col in ["playerId", "gameId", "originalGroup", "originalName",

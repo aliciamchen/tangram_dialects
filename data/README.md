@@ -1,6 +1,32 @@
 # Dataset codebook
 
-Each dataset is a directory `data/<name>/` with the same files and columns. The files somebody wrote by hand (`runs.txt` and the exclusion and exception files below) sit at the top, and everything the pipeline described in the project README generates sits one level down, in a directory per stage: the anonymized Empirica exports in `raw/`, the analysis-ready tables in `tables/`, the message filter's labels in `classifier/`, the similarity tables and description properties in `measures/`, the aggregated tables the models are fit to in `model_inputs/`, and the fitted objects the model scripts keep between runs in `cache/`. What the models and the paper layer write goes to `results/`. The full sample is `data/full/`, which stays out of the repository until its public release, and `make smoke` writes a throwaway `data/smoke/`.
+Each dataset is a directory `data/<name>/` with the same layout, defined once in `preprocessing/dataset_paths.py` and mirrored in `stats/config.R`. The files somebody wrote by hand sit at the top of the directory, everything the pipeline generates sits one level down in a directory named for the step that writes it, and what the analysis scripts and the report layer generate goes to `results/`:
+
+| Path | Written by | Contents |
+|---|---|---|
+| `data/<name>/` | by hand | `runs.txt`, the Empirica export timestamps the dataset is built from, and the exclusion and exception files described below |
+| `data/<name>/raw/` | `make data` | The raw Empirica tables, stacked across those exports, with identifying columns removed, and the `manifest.json` that records what went into them |
+| `data/<name>/tables/` | `make data` | The analysis-ready tables described in this file: `games`, `players`, `trials`, `messages`, `speaker_utterances`, `speaker_utterances_filtered`, `social_guesses` and `dropouts` |
+| `data/<name>/classifier/` | `make data` | The message filter's label cache, the record of the model that wrote it, and the author's annotation check |
+| `data/<name>/measures/` | `make data` | The measures computed from the descriptions: the SBERT embeddings, the pairwise and block-by-block similarity tables in sentence-embedding and content-word (Jaccard) versions, each speaker's Phase 1 to Phase 2 similarity, and the per-description properties |
+| `data/<name>/model_inputs/` | `make data` | The aggregated tables the models are fit to |
+| `data/<name>/cache/` | `make estimates` | Fitted objects kept between runs: the permutation results, the brms fits and the H4 models that later scripts reuse; never committed |
+| `results/estimates/` | `make estimates` | One tidy estimates table per analysis script, with a `manifest.json` naming the script, the columns and the git commit that wrote each |
+| `results/macros/` | `make report` | The six macro files the manuscript reads |
+| `results/plots/` | `make report` | The figure panels, one PDF each, from which the article's figures are assembled in Illustrator |
+
+The full sample is `data/full/`, which stays out of the repository until its public release, and `make smoke` writes a throwaway `data/smoke/`. A dataset other than `full` keeps its results inside its own directory, `data/<name>/results/`, so a trial run never touches the committed ones. In code, the layout supplies the paths, so none is typed:
+
+```python
+from preprocessing.dataset_paths import dataset_dirs
+dirs = dataset_dirs("full")
+trials = pd.read_csv(dirs.tables / "trials.csv", low_memory=False)
+```
+
+```r
+source("stats/config.R")   # the paths and constants of the active dataset
+tables <- load_tables()     # the processed tables and the measures, as a named list
+```
 
 Timestamps come from two clocks. The columns recorded in the participant's browser (`selectionRenderedAt`, `tangramSelectedAt`, `clickedAt`, `socialGuessSelectedAt`, `composeStartedAt` and the message `timestamp`) are comparable only within that participant, because browser clocks differ by seconds and occasionally by hours; the response times derived from them (`selectionRt`, `socialGuessRt`, `composeMs`) are within-participant differences and are safe. The columns recorded by the server (`selectionStartedAt`, `selectionEndedAt`, `gameStartTime`, `gameEndTime`) are comparable across everyone.
 
@@ -31,6 +57,8 @@ One row per game.
 | `activeGroups` | Number of original groups still viable when the game ended (0 if every group was disbanded) |
 | `activeGroupsMin` | The fewest groups any Phase 2 trial was played with: per Phase 2 round, the server's `reshuffle_groups` count where the export has it (September 2026 onward), otherwise the number of groups with a speaker in that round, minimized over rounds. It is below `activeGroups` in the mixed conditions when a reduced roster formed fewer groups than there were viable original groups |
 | `phase1Blocks`, `phase2Blocks` | Number of blocks in each phase |
+| `ranToCompletion` | Whether at least two original groups were still viable when the game ended (`activeGroups`); these games enter the primary analyses |
+| `completeNine` | Whether the game ran to completion with all nine players still active, the restriction the intact-games analyses and figures use |
 | `ended` | Whether Empirica marked the game as ended |
 | `endedReason` | `end of game` when the game ran to completion, `all players removed` when it ended early |
 | `gameTerminated` | Whether the researcher stopped the game from the admin panel |
@@ -54,6 +82,9 @@ One row per player.
 | `isActive` | Whether the player stayed in the game to the end |
 | `idleRounds` | Number of rounds the player was idle |
 | `exitReason` | Why a player left early: `player timeout` (idle for three rounds), `low accuracy` (failed the Phase 1 accuracy check), `group disbanded`, `insufficient groups after accuracy check` or `quiz failed`; empty for players who finished |
+| `removed` | Whether the player was taken out of the game before its end (`isActive` is false) |
+| `removalReason` | The category of a removed player's `exitReason`: `idle`, `low accuracy`, `group disbanded`, `insufficient groups`, `game terminated`, or `other` for a reason outside these; empty for players who finished |
+| `removedNoFault` | Whether the removal was through no fault of the participant: their group fell apart, too few groups remained for the game to go on, or the batch was stopped. These players are compensated for their time and reported apart from players removed for inactivity or their group's low accuracy |
 | `ended` | Empirica's end status, `game ended` for everyone once the game has ended, removed players included; `exitReason` carries the information about removal |
 | `gameStartTime`, `gameEndTime` | When the player started and ended, in ms since the epoch on the server's clock; the difference gives the time-prorated base pay |
 | `minutesSpent` | Whole minutes between start and end |

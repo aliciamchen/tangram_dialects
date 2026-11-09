@@ -32,7 +32,9 @@ from preprocessing.filter_nonreferential import (
 from preprocessing.combine_runs import DROPOUT_COLUMNS, exclude_games, read_excluded_games, split_dropouts
 from preprocessing.preprocessing import (
     add_active_groups_min,
+    add_completion_columns,
     add_network_columns,
+    add_removal_columns,
     add_server_network_columns,
     apply_participant_exclusions,
     build_games,
@@ -399,6 +401,37 @@ def test_server_reassignment_flag_takes_precedence_and_missing_sources_give_na()
     out_none = add_network_columns(trials)
     assert out_none["speakerReassigned"].isna().all()
     assert out_none["speakerId"].tolist() == ["A0", "A0", "A0", "C1", "C1"]
+
+
+def test_add_removal_columns_codes_the_exit_reasons():
+    players = pd.DataFrame({
+        "gameId": ["g1"] * 5,
+        "playerId": ["p1", "p2", "p3", "p4", "p5"],
+        "isActive": [True, False, False, False, False],
+        "exitReason": [None, "player timeout", "group disbanded", "insufficient groups after accuracy check", "a new reason"],
+    })
+    out = add_removal_columns(players)
+    assert out["removed"].tolist() == [False, True, True, True, True]
+    assert pd.isna(out["removalReason"].iloc[0]), "a player who finished has no removal category"
+    assert out["removalReason"].tolist()[1:] == ["idle", "group disbanded", "insufficient groups", "other"]
+    assert out["removedNoFault"].tolist() == [False, False, True, True, False]
+
+
+def test_add_completion_columns_follow_the_servers_rules():
+    games = pd.DataFrame({
+        "gameId": ["whole", "short", "two", "ended", "unknown"],
+        "activeGroups": pd.array([3, 3, 2, 1, pd.NA], dtype="Int64"),
+    })
+    rows = []
+    for game, removed in {"whole": 0, "short": 1, "two": 3, "ended": 6}.items():
+        rows += [{"gameId": game, "removed": i < removed} for i in range(9)]
+    out = add_completion_columns(games, pd.DataFrame(rows)).set_index("gameId")
+    assert out["ranToCompletion"].tolist() == [True, True, True, False, False], (
+        "two viable groups keep a game running; a missing count is not completion"
+    )
+    assert out["completeNine"].tolist() == [True, False, False, False, False], (
+        "complete means ran to completion with nine players, none of them removed"
+    )
 
 
 def test_build_players_exports_the_rotation_index_as_a_nullable_integer():

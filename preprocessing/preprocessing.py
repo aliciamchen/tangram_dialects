@@ -1,13 +1,20 @@
 """
-Preprocessing script for Empirica experiment data.
+The analysis-ready tables: from the raw Empirica exports to data/<dataset>/tables/.
 
-Parses raw Empirica export CSVs and produces clean analysis-ready CSVs.
+Reads the anonymized raw tables combine_runs.py wrote to data/<dataset>/raw/
+and writes games.csv, players.csv, trials.csv, messages.csv,
+speaker_utterances.csv and social_guesses.csv, whose columns data/README.md
+describes. On the way it applies the participant and technical exclusions
+listed at the top of the dataset directory, codes the accuracy outcomes under
+the response-opportunity rule, adds the analysis columns (the condition and
+the 1-indexed block numbers) and codes the attrition facts (who was removed
+and why, which games ran to completion), so that the models, the macros and
+the figures read these facts rather than compute them.
 
 Usage:
     uv run python -m preprocessing.preprocessing --dataset <name>
 
-process_data.py runs this as its first step with those two paths for the
-active dataset.
+process_data.py runs this as its first step for the active dataset.
 """
 
 import argparse
@@ -1139,6 +1146,71 @@ def exclude_survey_answers(players: pd.DataFrame, exclusions: pd.DataFrame) -> p
 ANALYSIS_COLUMNS = ["condition", "block", "gameBlock"]
 
 
+# ── Attrition facts ──────────────────────────────────────────────────────────
+#
+# Who was removed and why, and which games ran to completion, coded here once
+# so that the R helpers (stats/R/attrition.R), the descriptive macros
+# (report/descriptives.py) and the figures read them rather than each coding
+# the server's exit reasons again.
+
+# The server's exit reasons (EXIT_REASONS in experiment/shared/constants.js)
+# and the removal category each falls in. A removal is through no fault of the
+# participant when their group fell apart, too few groups remained for the game
+# to go on, or the batch was stopped; those players are compensated for their
+# time (experiment/server/src/compensation.js) and are reported apart from the
+# players removed for their own inactivity or their group's low accuracy.
+REMOVAL_REASONS = {
+    "player timeout": "idle",
+    "low accuracy": "low accuracy",
+    "group disbanded": "group disbanded",
+    "insufficient groups": "insufficient groups",
+    "insufficient groups after accuracy check": "insufficient groups",
+    "game terminated": "game terminated",
+}
+NO_FAULT_REASONS = {"group disbanded", "insufficient groups", "game terminated"}
+MIN_GROUPS_TO_RUN = 2  # the server ends a game once fewer original groups are viable
+FULL_ROSTER = 9
+
+
+def add_removal_columns(players: pd.DataFrame) -> pd.DataFrame:
+    """Add `removed`, `removalReason` and `removedNoFault` to the players table.
+
+    A player was removed when `isActive` is false. `removalReason` is the
+    category of their `exitReason` under REMOVAL_REASONS, `other` for an exit
+    reason outside the known ones, and empty for a player who finished.
+    """
+    players = players.copy()
+    removed = ~_as_bool_na(players["isActive"]).fillna(False).astype(bool)
+    exit_reason = (
+        players["exitReason"] if "exitReason" in players.columns else pd.Series(pd.NA, index=players.index)
+    )
+    reason = exit_reason.map(REMOVAL_REASONS)
+    reason = reason.where(reason.notna(), "other").where(removed, pd.NA)
+    players["removed"] = removed
+    players["removalReason"] = reason
+    players["removedNoFault"] = removed & reason.isin(NO_FAULT_REASONS)
+    return players
+
+
+def add_completion_columns(games: pd.DataFrame, players: pd.DataFrame) -> pd.DataFrame:
+    """Add `ranToCompletion` and `completeNine` to the games table.
+
+    A game ran to completion when at least MIN_GROUPS_TO_RUN original groups
+    were still viable when it ended (`activeGroups`); these games enter the
+    primary analyses. A complete nine-player game ran to completion with all
+    FULL_ROSTER players still active (`removed` from add_removal_columns()).
+    """
+    games = games.copy()
+    active = pd.to_numeric(games["activeGroups"], errors="coerce")
+    ran = (active >= MIN_GROUPS_TO_RUN).fillna(False).astype(bool)
+    roster = players.groupby("gameId")["removed"].agg(["size", "sum"])
+    players_in = games["gameId"].map(roster["size"]).fillna(0).astype(int)
+    removed_in = games["gameId"].map(roster["sum"]).fillna(0).astype(int)
+    games["ranToCompletion"] = ran
+    games["completeNine"] = ran & (players_in == FULL_ROSTER) & (removed_in == 0)
+    return games
+
+
 def add_analysis_columns(df: pd.DataFrame, games: pd.DataFrame) -> pd.DataFrame:
     """Add `condition`, `block` and `gameBlock` to a table with gameId, blockNum and phaseNum.
 
@@ -1775,8 +1847,9 @@ def main():
     stage_path = input_dir / "stage.csv"
     stage_df = pd.read_csv(stage_path) if stage_path.exists() else None
 
-    # Build each output. games.csv is written after trials because the Phase 2
-    # roster minimum (activeGroupsMin) is read off the trials table.
+    # Build each output. games.csv is written last: the Phase 2 roster minimum
+    # (activeGroupsMin) is read off the trials table and the completion columns
+    # off the players table.
     print("Building games.csv...")
     games = build_games(game_df)
 
@@ -1839,8 +1912,6 @@ def main():
     )
 
     games = add_active_groups_min(games, round_df, trials)
-    games.to_csv(output_dir / "games.csv", index=False)
-    print(f"  {len(games)} games written to games.csv")
 
     print("Building speaker_utterances.csv...")
     speaker_utterances = build_speaker_utterances(messages, trials)
@@ -1854,11 +1925,19 @@ def main():
         flag_length_increase(speaker_utterances), on=["gameId", "playerId"], how="left"
     )
     players["lengthIncreaseFlag"] = players["lengthIncreaseFlag"].fillna(False).astype(bool)
+    players = add_removal_columns(players)
     players = exclude_survey_answers(players, exclusions)
     if not exclusions.empty:
         print(f"  Blanked the exit-survey answers of {int(players['excluded'].sum())} excluded participant(s)")
     players.to_csv(output_dir / "players.csv", index=False)
-    print(f"  {len(players)} players, {int(players['lengthIncreaseFlag'].sum())} flagged for a Phase 1 length increase")
+    print(
+        f"  {len(players)} players, {int(players['removed'].sum())} removed, "
+        f"{int(players['lengthIncreaseFlag'].sum())} flagged for a Phase 1 length increase"
+    )
+
+    games = add_completion_columns(games, players)
+    games.to_csv(output_dir / "games.csv", index=False)
+    print(f"  {len(games)} games written to games.csv, {int(games['completeNine'].sum())} complete with nine players")
 
     print("Building social_guesses.csv...")
     social_guesses = build_social_guesses(player_round_df, game_df, trials)
