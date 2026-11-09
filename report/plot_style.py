@@ -114,8 +114,6 @@ DIRECT_LABEL_IN_COLOR = True  # a line's name in the line's color; False sets it
 BETWEEN_LINESTYLE = (0, (3, 1.5))  # between-group similarity where it shares a panel with within-group (solid) and the color carries the condition
 BETWEEN_MARKER = "^"  # the mark of the second kind of line where the lines carry points: a filled triangle, since a hollow circle means Phase 2
 STIMULUS_GLYPH = "#B8BEBB"  # a stimulus drawn small and light in a panel, as a reminder of which tangram it shows
-PANEL_FACE = "#F3F5F4"  # the boxes of the design schematic
-PANEL_EDGE = "#DCE1DE"
 # A mark that is filled before the manipulation and hollow after it: the face
 # the series color or white, the edge the series color
 PHASE_POINT = dict(s=12, linewidths=0.8)
@@ -213,11 +211,6 @@ ATTRITION_PANEL_AXES = (1.5, 7.0)
 # The plotting area of the two attrition-curve panels: a block panel a little taller,
 # since the figure stands alone in the SI with its keys beside the panels
 CURVES_PANEL_AXES = (BLOCK_PANEL_AXES[0], 1.3)
-# The plotting area of a schematic of one participant's screen (the listener
-# screens), landscape, with room for the screen's wording at the usual sizes
-SCREEN_PANEL_AXES = (3.6, 2.75)
-DESIGN_FIGURE = (7.2, 6.6)
-
 FONT_FAMILY = ["Arial Nova", "Helvetica Neue", "Arial", "DejaVu Sans"]
 
 
