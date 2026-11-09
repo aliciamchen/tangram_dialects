@@ -1,21 +1,11 @@
 # Makefile: from the Empirica exports to the article's macros and figures.
 #
 # Everything is keyed by a dataset name (DATASET, default full). The data
-# tree holds what the pipeline makes from the exports and the results tree
-# what the models and the report layer make from the data (the layout is
-# defined in preprocessing/dataset_paths.py and mirrored in stats/config.R):
-#   data/<name>/                 the hand-written inputs: runs.txt and the exclusion files
-#   data/<name>/raw/             the anonymized raw Empirica tables (combine)
-#   data/<name>/tables/          the analysis-ready tables (process)
-#   data/<name>/classifier/      the message filter's label cache (process)
-#   data/<name>/measures/        embeddings, similarity tables, description properties (measures)
-#   data/<name>/model_inputs/    the aggregated tables the models are fit to (model-inputs)
-#   data/<name>/cache/           fitted objects kept between model runs (never committed)
-#   results/estimates/           one tidy estimates table per model script (models)
-#   results/macros/               the LaTeX macro files (macros)
-#   results/plots/               the figures, one PDF each (figures)
-#   figures/                     the hand-made figures (top-level, not per-dataset): the
-#                               Illustrator source and the final figures it exports
+# tree, data/<name>/, holds what the pipeline makes from the exports and the
+# results tree what the analysis scripts and the report layer make from the
+# data; the layout is defined in preprocessing/dataset_paths.py and described
+# for readers in data/README.md. The article's figures are assembled by hand
+# from the plots and exported to figures/paper_files/.
 #
 # The verbs, in the order the work runs:
 #   make data           # extract, combine and process the exports into data/<name>/ (private
@@ -34,9 +24,10 @@
 # The analysis scripts are real Make targets: results/estimates/<family>/<name>.csv
 # is built by stats/<family>/<name>.R and depends on the data it reads, the
 # shared R code and the estimates of earlier scripts, so `make estimates` reruns
-# only what changed. The Bayes factors (minutes to tens of minutes, cached by
-# brms) honor BAYES_FACTORS: auto (default; only for non-significant planned
-# contrasts), always, or never (skip, keeping the previous estimates).
+# only what changed (and everything after an edit to the shared R code). The
+# Bayes factors (minutes to tens of minutes, cached by brms) honor
+# BAYES_FACTORS: auto (default; only for non-significant planned contrasts),
+# always, or never (skip, keeping the previous estimates).
 #
 # The finer steps:
 #   make extract        # extract the dataset's zips → data/runs/<timestamp>/
@@ -146,31 +137,15 @@ tally: ## Games per (condition, tangram set) cell and progress against the stopp
 final-exports: ## Stage the final export of each server period, plus every server log, in backups/final_exports/ for the off-site backup
 	$(PY) operations/final_exports.py --dataset $(DATASET)
 
-# ── The models ──────────────────────────────────────────────
-# One rule per script: the estimates table it writes, the data it reads and
-# the estimates it builds on. The pattern rule below supplies the recipe.
+# ── The analysis scripts ────────────────────────────────────
+# Every script stats/<family>/<name>.R writes results/estimates/<family>/<name>.csv,
+# so a new script is a target as soon as the file exists. The lines below name
+# the data and the estimates each table depends on, so that `make estimates`
+# reruns only what changed; a new script needs one such line. The pattern rule
+# at the end supplies the recipe.
 
-ESTIMATES = \
-  $(ESTIMATES_DIR)/checks/convention_trends.csv \
-  $(ESTIMATES_DIR)/checks/phase1_group_specificity.csv \
-  $(ESTIMATES_DIR)/checks/dropout_and_survey.csv \
-  $(ESTIMATES_DIR)/checks/specificity_trajectory.csv \
-  $(ESTIMATES_DIR)/primary/group_specificity.csv \
-  $(ESTIMATES_DIR)/primary/h1_h2.csv \
-  $(ESTIMATES_DIR)/primary/h3a.csv \
-  $(ESTIMATES_DIR)/primary/h3b.csv \
-  $(ESTIMATES_DIR)/primary/h3c.csv \
-  $(ESTIMATES_DIR)/primary/h4.csv \
-  $(ESTIMATES_DIR)/primary/robustness.csv \
-  $(ESTIMATES_DIR)/primary/bayes_factors.csv \
-  $(ESTIMATES_DIR)/secondary/semantic_change.csv \
-  $(ESTIMATES_DIR)/secondary/phase2_accuracy.csv \
-  $(ESTIMATES_DIR)/secondary/ingroup_advantage.csv \
-  $(ESTIMATES_DIR)/secondary/specificity_vs_social_accuracy.csv \
-  $(ESTIMATES_DIR)/secondary/social_accuracy_trend.csv \
-  $(ESTIMATES_DIR)/secondary/phase2_length.csv \
-  $(ESTIMATES_DIR)/secondary/utterance_properties.csv \
-  $(ESTIMATES_DIR)/exploratory/social_phase2_specificity.csv
+SCRIPTS = $(filter-out stats/R/% stats/tests/%,$(wildcard stats/*/*.R))
+ESTIMATES = $(patsubst stats/%.R,$(ESTIMATES_DIR)/%.csv,$(SCRIPTS))
 
 GAMES = $(TABLES_DIR)/games.csv
 PLAYERS = $(TABLES_DIR)/players.csv
