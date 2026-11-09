@@ -45,6 +45,7 @@ data/runs/
 data/payments/
 data/old_pilots/
 full-sample-todos.md
+decisions.md
 
 # Local session state written by the retired operations/session.py
 operations/.sessions/
@@ -64,3 +65,5 @@ results/**/.manifest.lock
 
 # Worktrees that Claude Code creates for parallel sessions
 .claude/worktrees/
+
+preprint_todos.md
