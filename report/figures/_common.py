@@ -43,6 +43,9 @@ And for a figure assembled by hand from separate panels:
                                          a gray glyph left of the axes
     network_layout(n)                    the players of a game on a circle, in
                                          group order, for a network panel
+    stack_labels(ax, edge, items)        the parts of a stacked bar named
+                                         beside it, each with a gloss and a
+                                         line to its part
 
 And the restriction under which the SI draws the main panels again
 (intact_games.py):
@@ -66,6 +69,14 @@ And the descriptive codings of the Phase 1 conventions, which no model uses:
                                          share and no other group has
     code_convention_use(utterances, v)   whose convention words a description
                                          uses: own, both, other or neither
+    phase1_wording(utterances)           each group's Phase 1 wording for a
+                                         tangram as word stems: its members'
+                                         final descriptions and its earlier ones
+    word_source(stem, game, group, ...)  where one word of a description comes
+                                         from: the own group's final or earlier
+                                         Phase 1 wording, another group's, or new
+    code_word_sources(utterances, w)     a description's content words counted
+                                         by source
 
 The long table has a `level` column: "game" rows carry one game's value,
 "condition" rows the pooled mean with `lower`, `upper` and `n_games`. A
@@ -78,7 +89,7 @@ from __future__ import annotations
 import json
 import re
 import xml.etree.ElementTree as ET
-from collections import Counter
+from collections import Counter, defaultdict
 from functools import lru_cache
 from pathlib import Path
 
@@ -105,6 +116,7 @@ from report.plot_style import (
     GROUP_ORDER,
     INK,
     INTERVAL_LINE,
+    LEADER_LINE,
     MARKER_AREA,
     MEAN_LINE,
     MEAN_POINT,
@@ -501,6 +513,34 @@ def condition_ticks(ax, conditions=CONDITION_ORDER) -> None:
     ax.set_xlim(-0.6, len(conditions) - 0.4)
 
 
+def stack_labels(
+    ax, edge: float, items: list[tuple[str, str, float]], gap: float = 0.2, size: float = SMALL_SIZE, weight: str = "bold"
+) -> None:
+    """The parts of the stacked bar whose right edge is at `edge` named in the margin to its right.
+
+    `items` are (name, gloss, y), y the height in data units that the name
+    points to: a segment's middle, or a mark on the bar. Each name is set in
+    `weight` with its gloss in parentheses below it, both in ink at `size`,
+    and a line from it to its height at the bar's edge. The names are pushed up
+    from the lowest so that no two are closer than `gap`, a share of the y
+    axis, then walked down from the top of the axis so that the lowest stays
+    as near its height as the others allow; the y limits are set first."""
+    low, high = ax.get_ylim()
+    span = high - low
+    items = sorted(items, key=lambda item: item[2])
+    placed = []
+    for _, _, y in items:
+        placed.append(y if not placed else max(y, placed[-1] + gap * span))
+    placed[-1] = min(placed[-1], high - gap * span / 2)
+    for j in range(len(placed) - 2, -1, -1):
+        placed[j] = min(placed[j], placed[j + 1] - gap * span)
+    x_text = edge + 0.3
+    for (name, gloss, y), y_label in zip(items, placed):
+        ax.plot([edge + 0.03, x_text - 0.05], [y, y_label], zorder=2, **LEADER_LINE)
+        ax.text(x_text, y_label, name, fontsize=size, fontweight=weight, color=INK, ha="left", va="center", clip_on=False)
+        ax.text(x_text, y_label - 0.06 * span * size / SMALL_SIZE, f"({gloss})", fontsize=size, color=INK, ha="left", va="top", clip_on=False)
+
+
 def significance_stars(p: float) -> str:
     """A planned contrast's two-tailed p-value as stars: *** below .001, ** below .01, * below .05, n.s. otherwise.
 
@@ -741,4 +781,101 @@ def code_convention_use(utterances: pd.DataFrame, vocabulary: dict) -> pd.DataFr
             use, variant = "neither", "none"
         rows.append((u.Index, use, variant))
     coded = pd.DataFrame(rows, columns=["index", "use", "variant"]).set_index("index")
+    return utterances.join(coded, how="inner")
+
+
+# ── Where Phase 2 words come from ────────────────────────────
+# A third descriptive coding: each content word of a description by the
+# Phase 1 descriptions of the same tangram in the same game it first appears
+# in. Broader than the convention words, it keeps every word a group used and
+# matches words on their stems. No model uses it.
+
+WORD_SOURCES = ["own_final", "own_earlier", "other", "new"]
+TYPO_MIN_LETTERS = 4  # a stem this long matches a source stem one edit away, so that a misspelling is not new
+
+
+@lru_cache(maxsize=1)
+def _stemmer():
+    from nltk.stem import PorterStemmer
+
+    return PorterStemmer()
+
+
+@lru_cache(maxsize=None)
+def word_stem(word: str) -> str:
+    """A content word's Porter stem, so that "wing" and "wings" are one word."""
+    return _stemmer().stem(word)
+
+
+def content_stems(text) -> set[str]:
+    """The distinct stems of a description's content words (content_words())."""
+    return {word_stem(w) for w in content_words(text)}
+
+
+def one_edit(a: str, b: str) -> bool:
+    """Whether `a` and `b` differ by one insertion, deletion or substitution of a letter, or a swap of two neighboring letters."""
+    if a == b or abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        diff = [i for i in range(len(a)) if a[i] != b[i]]
+        return len(diff) == 1 or (len(diff) == 2 and diff[1] == diff[0] + 1 and a[diff[0]] == b[diff[1]] and a[diff[1]] == b[diff[0]])
+    short, longer = sorted((a, b), key=len)
+    return any(longer[:i] + longer[i + 1:] == short for i in range(len(longer)))
+
+
+def phase1_wording(utterances: pd.DataFrame) -> dict[tuple, tuple[set[str], set[str]]]:
+    """Each group's Phase 1 wording for each tangram, keyed (gameId, originalGroup, target): the stems of its members' final descriptions of it, and the stems of its earlier ones that no final one has.
+
+    A member's final description of a tangram is their last in Phase 1, which
+    falls in blocks 4 to 6, the second time each member described it."""
+    p1 = utterances[utterances["phaseNum"] == 1].sort_values("blockNum")
+    last = set(p1.groupby(["gameId", "playerId", "target"]).tail(1).index)
+    final, every = defaultdict(set), defaultdict(set)
+    for u in p1.itertuples():
+        key = (u.gameId, u.originalGroup, u.target)
+        stems = content_stems(u.utterance)
+        every[key] |= stems
+        if u.Index in last:
+            final[key] |= stems
+    return {key: (final[key], stems - final[key]) for key, stems in every.items()}
+
+
+def _near(stem: str, vocabulary: set[str]) -> bool:
+    return len(stem) >= TYPO_MIN_LETTERS and any(len(v) >= TYPO_MIN_LETTERS and one_edit(stem, v) for v in vocabulary)
+
+
+def word_source(stem: str, game: str, group: str, target: str, wording: dict) -> tuple[str, str | None]:
+    """Where one stem of a description by a member of `group` comes from, and for "other" the group it comes from.
+
+    The first of WORD_SOURCES it matches: "own_final" (the group's final
+    Phase 1 wording of the tangram), "own_earlier" (its earlier wording),
+    "other" (another group's final wording) or "new" (none of these). A word
+    both groups used counts as the speaker's own, so "other" is a lower bound
+    on borrowing; a word two other groups used takes the first in group
+    order. An exact match anywhere comes before a match one edit away, which
+    a stem of TYPO_MIN_LETTERS letters or more takes, so that a misspelling
+    ("dimaond") is not coded new. `wording` is phase1_wording()'s."""
+    empty = (set(), set())
+    own_final, own_earlier = wording.get((game, group, target), empty)
+    sources = [("own_final", None, own_final), ("own_earlier", None, own_earlier)]
+    sources += [("other", g, wording.get((game, g, target), empty)[0]) for g in GROUP_ORDER if g != group]
+    for match in (lambda s, v: s in v, _near):
+        for source, lender, vocabulary in sources:
+            if match(stem, vocabulary):
+                return source, lender
+    return "new", None
+
+
+def code_word_sources(utterances: pd.DataFrame, wording: dict) -> pd.DataFrame:
+    """The descriptions whose group has Phase 1 wording for the tangram, with their distinct content-word stems counted by source (a column per WORD_SOURCES entry) and in all (`content`).
+
+    `wording` is phase1_wording()'s."""
+    rows = []
+    for u in utterances.itertuples():
+        if (u.gameId, u.originalGroup, u.target) not in wording:
+            continue
+        counts = Counter(word_source(s, u.gameId, u.originalGroup, u.target, wording)[0] for s in content_stems(u.utterance))
+        rows.append((u.Index, *(counts[s] for s in WORD_SOURCES)))
+    coded = pd.DataFrame(rows, columns=["index", *WORD_SOURCES]).set_index("index")
+    coded["content"] = coded[WORD_SOURCES].sum(axis=1)
     return utterances.join(coded, how="inner")

@@ -142,6 +142,21 @@ NETWORK_EDGE = dict(color=INK, alpha=0.4, linewidth=0.9, solid_capstyle="round")
 # Stacked shares of one series: the alpha of the series color for each category in order
 STACK_ALPHAS = [1.0, 0.6, 0.3, 0.1]
 STACK_DIVIDER = dict(color="white", linewidth=0.6)  # the line between two stacked categories
+STACK_OUTLINE = dict(linewidth=0.6)  # a stacked bar's outline in its series color, so that the lightest step keeps an edge
+LEADER_LINE = dict(color=REFERENCE_GRAY, linewidth=0.5, clip_on=False)  # the line from a part's name beside a stacked bar to the part
+# A description's words marked by where they come from (word_source()), in a figure
+# that quotes descriptions: the own group's final Phase 1 words in bold, its earlier
+# Phase 1 words underlined with dots, another group's words on a tint of that group's
+# color, new words in italic, and function words and punctuation in gray
+WORD_SOURCE_TEXT = {
+    "own_final": dict(weight="bold", color=INK),
+    "own_earlier": dict(color=INK),
+    "other": dict(color=INK),
+    "new": dict(style="italic", color=INK),
+    "function": dict(color="#8A8A8A"),
+}
+WORD_UNDERLINE = dict(color=INK, linewidth=0.5, linestyle=(0, (1, 1)))  # under an own group's earlier word
+WORD_TINT_ALPHA = 0.3  # the tint behind another group's word, of that group's color
 # A player's time in the game on the attrition timelines: a bar in the original group's
 # color from the first block to the trial after which the server removed the player, or
 # to the end of the game, with a mark in ink at a removed player's end for the reason

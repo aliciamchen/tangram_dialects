@@ -21,8 +21,14 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from report.figures._common import (  # noqa: E402
     USES,
+    WORD_SOURCES,
     code_convention_use,
+    code_word_sources,
     convention_vocabulary,
+    one_edit,
+    phase1_wording,
+    word_source,
+    word_stem,
     draw_stimulus,
     intact_games,
     keep_games,
@@ -94,6 +100,57 @@ def test_code_convention_use_drops_a_description_whose_group_words_another_group
     assert vocabulary[("g", "C", "t")] == set()
     coded = code_convention_use(pd.DataFrame([_utterance("c1", "C", 2, 6, "ugly bird")]), vocabulary)
     assert coded.empty
+
+
+def _wording_phase1():
+    return pd.DataFrame([
+        # A tried "chicken with wings" before settling on "red rooster"
+        _utterance("a1", "A", 1, 0, "a chicken with wings"),
+        _utterance("a1", "A", 1, 4, "red rooster"),
+        _utterance("a2", "A", 1, 5, "the red roosters"),
+        _utterance("b1", "B", 1, 4, "ugly bird"),
+        _utterance("c1", "C", 1, 4, "skating bird"),
+    ])
+
+
+def test_one_edit_allows_one_insertion_deletion_substitution_or_swap():
+    assert one_edit("dimaond", "diamond")  # swap
+    assert one_edit("loook", "look")  # insertion
+    assert one_edit("shaoe", "shape")  # substitution
+    assert not one_edit("bird", "bird")
+    assert not one_edit("bird", "brad")  # two substitutions
+    assert not one_edit("rocket", "rockets!!")
+
+
+def test_phase1_wording_splits_final_from_earlier_stems():
+    final, earlier = phase1_wording(_wording_phase1())[("g", "A", "t")]
+    assert final == {"red", word_stem("rooster")}
+    assert earlier == {word_stem("chicken"), word_stem("wings")}
+
+
+def test_word_source_takes_the_first_source_that_matches():
+    wording = phase1_wording(_wording_phase1())
+    source = lambda word, group="A": word_source(word_stem(word), "g", group, "t", wording)
+    assert source("roosters") == ("own_final", None)
+    assert source("wing") == ("own_earlier", None)
+    assert source("ugly") == ("other", "B")
+    assert source("bird") == ("other", "B")  # B and C both have it: the first in group order
+    assert source("bird", group="B") == ("own_final", None)  # a word the speaker's group used is its own
+    assert source("banana") == ("new", None)
+    assert source("roostr") == ("own_final", None)  # one edit from a source word
+    assert source("rd") == ("new", None)  # too short to match one edit away
+
+
+def test_code_word_sources_counts_distinct_stems_by_source():
+    wording = phase1_wording(_wording_phase1())
+    phase2 = pd.DataFrame([
+        _utterance("a1", "A", 2, 6, "red rooster, red, with ugly wings and a banana"),
+        _utterance("d1", "A", 2, 6, "rooster", game="other"),  # no Phase 1 wording: left out
+    ])
+    coded = code_word_sources(phase2, wording)
+    assert len(coded) == 1
+    assert coded.iloc[0][WORD_SOURCES].tolist() == [2, 1, 1, 1]
+    assert coded.iloc[0]["content"] == 5
 
 
 def test_network_layout_places_nodes_evenly_on_the_unit_circle():

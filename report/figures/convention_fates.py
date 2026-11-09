@@ -41,6 +41,7 @@ from report.figures._common import (
     convention_vocabulary,
     panel_figure,
     speaker_utterances,
+    stack_labels,
 )
 from report.plot_style import (
     ABSENT,
@@ -49,10 +50,7 @@ from report.plot_style import (
     CONDITION_LABELS,
     CONDITION_ORDER,
     INK,
-    MUTED,
     NOTE_SIZE,
-    REFERENCE_GRAY,
-    SMALL_SIZE,
     STACK_ALPHAS,
     STACK_DIVIDER,
 )
@@ -67,8 +65,6 @@ GLOSSES = {
 }
 BAR_HALF = 0.31  # half a bar's width, of a column
 MIN_SHARE_FOR_TEXT = 0.04  # a segment shorter than this carries no share
-LABEL_GAP = 0.2  # the least distance between two fate labels, as a share of the axis
-LEADER = dict(color=REFERENCE_GRAY, linewidth=0.5, clip_on=False)  # the line from a fate's label to its segment
 MARGINS = dict(left=0.62, right=2.0, top=0.12, bottom=0.42)  # the y label, the fate labels, nothing, the condition names
 
 
@@ -118,27 +114,11 @@ def plot(df: pd.DataFrame):
                         color="white" if j == 0 else INK, zorder=3)
             centers[fate] = bottom + share / 2
             bottom += share
-    # The fate labels beside the last bar: pushed up from the bottom so none overlap, then walked down from
-    # the top so the lowest stays beside its segment; a line from each to the center of its segment
-    ys = [centers[f] for f in FATES]
-    placed = []
-    for y in ys:
-        placed.append(y if not placed else max(y, placed[-1] + LABEL_GAP))
-    placed[-1] = min(placed[-1], 1.0 - LABEL_GAP / 2)
-    for j in range(len(placed) - 2, -1, -1):
-        placed[j] = min(placed[j], placed[j + 1] - LABEL_GAP)
-    last = len(CONDITION_ORDER) - 1
-    x_text = last + BAR_HALF + 0.3
-    for fate, y_segment, y_label in zip(FATES, ys, placed):
-        ax.plot([last + BAR_HALF + 0.03, x_text - 0.05], [y_segment, y_label], zorder=2, **LEADER)
-        ax.text(x_text, y_label, fate.capitalize(), fontsize=SMALL_SIZE, fontweight="bold", color=INK, ha="left",
-                va="center", clip_on=False)
-        ax.text(x_text, y_label - 0.06, f"({GLOSSES[fate]})", fontsize=NOTE_SIZE, color=MUTED, ha="left", va="top",
-                clip_on=False)
+    ax.set_ylim(0, 1)
+    stack_labels(ax, len(CONDITION_ORDER) - 1 + BAR_HALF, [(f.capitalize(), GLOSSES[f], centers[f]) for f in FATES])
     ax.set_xticks(range(len(CONDITION_ORDER)))
     ax.set_xticklabels([CONDITION_LABELS[c].replace(" ", "\n", 1).replace("-", "-\n", 1) for c in CONDITION_ORDER])
     ax.set_xlim(-0.6, len(CONDITION_ORDER) - 0.4)
-    ax.set_ylim(0, 1)
     ax.set_yticks([0, 0.5, 1])
     ax.set_ylabel("Share of Phase 1\nconventions")
     return fig
