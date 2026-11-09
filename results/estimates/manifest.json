@@ -22,7 +22,7 @@
       "n_games",
       "n_rows"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "checks/dropout_and_survey": {
     "file": "checks/dropout_and_survey.csv",
@@ -41,7 +41,7 @@
       "p_value",
       "n"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "checks/phase1_group_specificity": {
     "file": "checks/phase1_group_specificity.csv",
@@ -60,7 +60,7 @@
       "perm_upper",
       "shared_phase1"
     ],
-    "commit": "b6e8c3d-dirty"
+    "commit": "d4522ae"
   },
   "checks/specificity_trajectory": {
     "file": "checks/specificity_trajectory.csv",
@@ -82,7 +82,7 @@
       "estimable",
       "note"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "exploratory/social_phase2_specificity": {
     "file": "exploratory/social_phase2_specificity.csv",
@@ -102,7 +102,7 @@
       "n_games",
       "measure"
     ],
-    "commit": "b6e8c3d-dirty"
+    "commit": "d4522ae"
   },
   "exploratory/social_phase2_specificity_coefficients": {
     "file": "exploratory/social_phase2_specificity_coefficients.csv",
@@ -126,7 +126,7 @@
       "random_effects",
       "n_games"
     ],
-    "commit": "b6e8c3d-dirty"
+    "commit": "d4522ae"
   },
   "exploratory/social_phase2_specificity_robustness": {
     "file": "exploratory/social_phase2_specificity_robustness.csv",
@@ -147,7 +147,7 @@
       "n_games",
       "measure"
     ],
-    "commit": "b6e8c3d-dirty"
+    "commit": "d4522ae"
   },
   "primary/bayes_factors": {
     "file": "primary/bayes_factors.csv",
@@ -165,7 +165,7 @@
       "method",
       "warnings"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/group_specificity": {
     "file": "primary/group_specificity.csv",
@@ -188,7 +188,7 @@
       "note",
       "measure"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/group_specificity_jaccard": {
     "file": "primary/group_specificity_jaccard.csv",
@@ -211,7 +211,7 @@
       "note",
       "measure"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/group_specificity_jaccard_coverage": {
     "file": "primary/group_specificity_jaccard_coverage.csv",
@@ -225,7 +225,7 @@
       "omitted",
       "prop_omitted"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/group_specificity_length_adjusted": {
     "file": "primary/group_specificity_length_adjusted.csv",
@@ -248,7 +248,7 @@
       "note",
       "measure"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/h1_h2": {
     "file": "primary/h1_h2.csv",
@@ -268,7 +268,7 @@
       "n_games",
       "measure"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/h1_h2_coefficients": {
     "file": "primary/h1_h2_coefficients.csv",
@@ -292,7 +292,7 @@
       "random_effects",
       "n_games"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/h1_h2_effect_sizes": {
     "file": "primary/h1_h2_effect_sizes.csv",
@@ -307,7 +307,7 @@
       "CI_high",
       "note"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/h3a": {
     "file": "primary/h3a.csv",
@@ -327,7 +327,7 @@
       "n_games",
       "measure"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/h3a_coefficients": {
     "file": "primary/h3a_coefficients.csv",
@@ -351,7 +351,7 @@
       "random_effects",
       "n_games"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/h3a_effect_sizes": {
     "file": "primary/h3a_effect_sizes.csv",
@@ -366,7 +366,7 @@
       "CI_high",
       "note"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/h3b": {
     "file": "primary/h3b.csv",
@@ -389,7 +389,7 @@
       "n_obs",
       "random_effects"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/h3c": {
     "file": "primary/h3c.csv",
@@ -414,7 +414,7 @@
       "n_descriptions",
       "n_games"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/h4": {
     "file": "primary/h4.csv",
@@ -436,7 +436,7 @@
       "n_games",
       "random_effects"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/h4_coefficients": {
     "file": "primary/h4_coefficients.csv",
@@ -459,7 +459,7 @@
       "n_obs",
       "random_effects"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/h4_response_opportunities": {
     "file": "primary/h4_response_opportunities.csv",
@@ -478,7 +478,7 @@
       "accuracy",
       "accuracy_on_time"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/h4_social_components": {
     "file": "primary/h4_social_components.csv",
@@ -502,7 +502,7 @@
       "false_alarm_rate",
       "balanced_accuracy"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "primary/robustness": {
     "file": "primary/robustness.csv",
@@ -527,7 +527,7 @@
       "or_lower",
       "or_upper"
     ],
-    "commit": "b6e8c3d-dirty"
+    "commit": "d4522ae"
   },
   "primary/robustness_restrictions": {
     "file": "primary/robustness_restrictions.csv",
@@ -539,7 +539,7 @@
       "games_excluded",
       "identical"
     ],
-    "commit": "b6e8c3d-dirty"
+    "commit": "d4522ae"
   },
   "secondary/ingroup_advantage": {
     "file": "secondary/ingroup_advantage.csv",
@@ -564,7 +564,7 @@
       "n_games",
       "min_trials"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/ingroup_advantage_by_condition": {
     "file": "secondary/ingroup_advantage_by_condition.csv",
@@ -576,7 +576,7 @@
       "listeners",
       "accuracy"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/phase2_accuracy": {
     "file": "secondary/phase2_accuracy.csv",
@@ -598,7 +598,7 @@
       "n_games",
       "random_effects"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/phase2_accuracy_by_condition": {
     "file": "secondary/phase2_accuracy_by_condition.csv",
@@ -614,7 +614,7 @@
       "z_vs_chance",
       "p_vs_chance"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/phase2_accuracy_coefficients": {
     "file": "secondary/phase2_accuracy_coefficients.csv",
@@ -638,7 +638,7 @@
       "random_effects",
       "n_games"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/phase2_length": {
     "file": "secondary/phase2_length.csv",
@@ -659,7 +659,7 @@
       "n_games",
       "random_effects"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/phase2_length_by_condition": {
     "file": "secondary/phase2_length_by_condition.csv",
@@ -676,7 +676,7 @@
       "words_lower",
       "words_upper"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/phase2_length_coefficients": {
     "file": "secondary/phase2_length_coefficients.csv",
@@ -700,7 +700,7 @@
       "random_effects",
       "n_games"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/semantic_change": {
     "file": "secondary/semantic_change.csv",
@@ -721,7 +721,7 @@
       "n_games",
       "random_effects"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/semantic_change_coefficients": {
     "file": "secondary/semantic_change_coefficients.csv",
@@ -745,7 +745,7 @@
       "random_effects",
       "n_games"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/semantic_change_switched": {
     "file": "secondary/semantic_change_switched.csv",
@@ -760,7 +760,7 @@
       "prop_switched",
       "switch_threshold"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/social_accuracy_trend": {
     "file": "secondary/social_accuracy_trend.csv",
@@ -786,7 +786,7 @@
       "outcome_mean",
       "n_scored"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/specificity_vs_social_accuracy": {
     "file": "secondary/specificity_vs_social_accuracy.csv",
@@ -810,7 +810,7 @@
       "random_effects",
       "n_games"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/utterance_properties": {
     "file": "secondary/utterance_properties.csv",
@@ -833,7 +833,7 @@
       "n_obs",
       "random_effects"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   },
   "secondary/utterance_properties_by_condition": {
     "file": "secondary/utterance_properties_by_condition.csv",
@@ -849,6 +849,6 @@
       "upper",
       "scale"
     ],
-    "commit": "cbd0c66-dirty"
+    "commit": "d4522ae"
   }
 }
