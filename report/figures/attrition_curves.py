@@ -14,7 +14,8 @@ Removals: the players removed in each block, and at the Phase 1 accuracy
 screen between blocks 6 and 7, stacked by reason in REMOVAL_SHADES, ink to
 light gray: idle for three rounds, the group failed the screen, the group
 fell below two members, fewer than two groups were left. The screen is most
-of the attrition. The reason categories are those of stats/R/attrition.R.
+of the attrition. The reason categories are those the pipeline writes in
+`removalReason` on players.csv.
 
 Unlike the article's panels, this is a complete figure for the SI: the two
 panels side by side on CURVES_PANEL_AXES, each with its key to its right, centered on the plot, the

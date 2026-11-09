@@ -8,9 +8,10 @@ idioms built on these values are in report/figures/_common.py. The R model
 scripts draw nothing.
 
 Usage:
-    from report.plot_style import CONDITION_COLORS, SINGLE_COLUMN, apply_style
+    from report.figures._common import panel_figure
+    from report.plot_style import CONDITION_COLORS, PANEL_AXES, apply_style
     apply_style()
-    fig, ax = plt.subplots(figsize=SINGLE_COLUMN)
+    fig, ax = panel_figure(left=0.42, right=0.12, axes=PANEL_AXES)
     ...
     # the report.figures runner saves the figure as results/plots/<module>.pdf
 """
@@ -113,10 +114,6 @@ DIRECT_LABEL_IN_COLOR = True  # a line's name in the line's color; False sets it
 BETWEEN_LINESTYLE = (0, (3, 1.5))  # between-group similarity where it shares a panel with within-group (solid) and the color carries the condition
 BETWEEN_MARKER = "^"  # the mark of the second kind of line where the lines carry points: a filled triangle, since a hollow circle means Phase 2
 STIMULUS_GLYPH = "#B8BEBB"  # a stimulus drawn small and light in a panel, as a reminder of which tangram it shows
-# A word set over the data: a tight rectangle of translucent white with rounded
-# corners behind it, so the lines show faintly through. No article panel uses
-# it; the quick-look builders in reviews/atlas-build/ import it
-FROSTED_LABEL = dict(boxstyle="round,pad=0.2,rounding_size=0.35", facecolor="white", alpha=0.75, edgecolor="none")
 PANEL_FACE = "#F3F5F4"  # the boxes of the design schematic
 PANEL_EDGE = "#DCE1DE"
 # A mark that is filled before the manipulation and hollow after it: the face
@@ -165,9 +162,10 @@ REMOVAL_SHADES = {"idle": INK, "low accuracy": "#7A7A7A", "group disbanded": "#B
 ABSENT = "#DCDCDC"
 
 # ── Sizes, in inches ─────────────────────────────────────────
+# Every article panel is written as its own PDF for assembly by hand, so the
+# sizes here are plotting areas, not figure sizes; the whole-figure sizes the
+# exploration notebooks use are in explore/_shared/style.py.
 
-SINGLE_COLUMN = (3.5, 2.7)
-DOUBLE_COLUMN = (7.2, 3.0)  # no article panel uses either; the explore/ notebooks size their figures with them
 # The plotting area of a panel written as its own PDF for assembly by hand, so
 # that panels line up when set side by side; the margins hold what each carries
 PANEL_AXES = (1.44, 0.96)
@@ -219,7 +217,6 @@ CURVES_PANEL_AXES = (BLOCK_PANEL_AXES[0], 1.3)
 # screens), landscape, with room for the screen's wording at the usual sizes
 SCREEN_PANEL_AXES = (3.6, 2.75)
 DESIGN_FIGURE = (7.2, 6.6)
-SLIDE = (10.0, 5.6)  # a 16:9 slide; pair it with apply_style(scale=2)
 
 FONT_FAMILY = ["Arial Nova", "Helvetica Neue", "Arial", "DejaVu Sans"]
 
@@ -234,8 +231,8 @@ def _register_local_fonts() -> None:
 def apply_style(scale: float = 1.0) -> None:
     """Set the matplotlib defaults every figure shares.
 
-    `scale` multiplies the type sizes: 1 for the article's column widths, about 2
-    for a figure drawn at SLIDE size.
+    `scale` multiplies the type sizes: 1 for the article's panels, about 2 for
+    a figure drawn at slide size.
     """
     _register_local_fonts()
     plt.rcParams.update(

@@ -17,8 +17,8 @@ and when the first left.
 Unlike the article's panels, this is a complete figure for the SI: the four
 condition panels side by side, each on ATTRITION_PANEL_AXES under its
 condition's name, with one key for the reason marks below them; the group
-colors are left to the caption. The reason categories are those of stats/R/attrition.R and
-report/descriptives.py."""
+colors are left to the caption. The reason categories are those the pipeline
+writes in `removalReason` on players.csv."""
 
 from __future__ import annotations
 
@@ -47,16 +47,8 @@ from report.plot_style import (
 
 TRIALS_PER_BLOCK = 6
 X_START, X_END = 0.5, GAME_BLOCKS + 0.5
-# The server's exit reasons and the category each falls in
-REASONS = {
-    "player timeout": "idle",
-    "low accuracy": "low accuracy",
-    "group disbanded": "group disbanded",
-    "insufficient groups": "insufficient groups",
-    "insufficient groups after accuracy check": "insufficient groups",
-}
 OUTCOMES = ["complete", "three groups", "two groups", "ended early"]
-REASON_ORDER = ["idle", "low accuracy", "group disbanded", "insufficient groups"]
+REASON_ORDER = ["idle", "low accuracy", "group disbanded", "insufficient groups"]  # the removal categories the figure has a mark for
 REASON_LABELS = {
     "idle": "Idle for three rounds",
     "low accuracy": "Group failed the Phase 1 accuracy screen",
@@ -83,10 +75,11 @@ def player_table(dirs) -> pd.DataFrame:
     trials = read_table(dirs, "trials.csv")[["gameId", "playerId", "trialNum"]]
     last = trials.groupby(["gameId", "playerId"])["trialNum"].max().rename("lastTrial").reset_index()
     p = players.merge(last, on=["gameId", "playerId"], how="left").merge(games[["gameId", "condition", "activeGroups"]], on="gameId")
-    p["removed"] = ~is_true(p["isActive"])
-    p["reason"] = np.where(p["removed"], p["exitReason"].map(REASONS), "stayed")
-    if (p["removed"] & p["reason"].isna()).any():
-        raise ValueError("an exit reason outside the known ones")
+    p["removed"] = is_true(p["removed"])
+    p["reason"] = p["removalReason"].where(p["removed"], "stayed")
+    unmarked = set(p.loc[p["removed"], "reason"]) - set(REASON_ORDER)
+    if unmarked:
+        raise ValueError(f"no mark for the removal reason(s) {sorted(unmarked)}")
     p["xLeft"] = np.where(p["removed"], trial_end(p["lastTrial"]), X_END)
     p = p.sort_values(["gameId", "originalGroup", "playerIndex"]).reset_index(drop=True)
     p["slot"] = p["originalGroup"].map({g: i for i, g in enumerate(GROUP_ORDER)}) * 3 + p.groupby(["gameId", "originalGroup"]).cumcount()

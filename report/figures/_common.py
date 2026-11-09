@@ -91,7 +91,7 @@ from matplotlib import transforms
 from matplotlib.patches import Polygon, Rectangle
 
 from report.bootstrap import bootstrap_mean
-from report.descriptives import game_status, utterances_file
+from report.descriptives import utterances_file
 from report.inferential import read_estimates
 from report.plot_style import (
     CI_ALPHA,
@@ -233,9 +233,9 @@ def social_guesses(dirs) -> pd.DataFrame:
 
 
 def intact_games(dirs) -> set[str]:
-    """The games that kept all nine players to the end: `complete_nine` of report.descriptives.game_status(), the games the complete-games rerun keeps."""
-    status = game_status(read_table(dirs, "players.csv"), read_table(dirs, "games.csv"))
-    return set(status.loc[status["complete_nine"], "gameId"])
+    """The games that kept all nine players to the end: `completeNine` on games.csv, as the pipeline coded it, the games the complete-games rerun keeps."""
+    games = read_table(dirs, "games.csv")
+    return set(games.loc[is_true(games["completeNine"]), "gameId"])
 
 
 RESTRICTIONS = {"complete_games": intact_games}  # by the rerun's name in primary/robustness.csv

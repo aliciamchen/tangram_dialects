@@ -6,6 +6,7 @@ Run with:
     uv run pytest report/test_figures.py -v
 """
 
+import importlib
 import types
 
 import matplotlib
@@ -22,6 +23,15 @@ def test_figure_names_lists_only_public_modules():
     names = figure_names()
     assert all(not n.startswith("_") for n in names)
     assert names == sorted(names)
+
+
+def test_every_figure_module_imports_and_defines_the_contract():
+    """Each module in report/figures/ imports without data and defines data() and plot(), with FOLDER a string when set."""
+    for name in figure_names():
+        module = importlib.import_module(f"report.figures.{name}")
+        assert callable(getattr(module, "data", None)), f"{name} defines no data()"
+        assert callable(getattr(module, "plot", None)), f"{name} defines no plot()"
+        assert isinstance(getattr(module, "FOLDER", ""), str), f"{name}.FOLDER is not a string"
 
 
 def test_save_figure_writes_the_pdf(tmp_path):

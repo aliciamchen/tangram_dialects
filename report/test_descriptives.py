@@ -31,11 +31,15 @@ from report.descriptives import (
     session_minutes_macros,
 )
 
+# The attrition columns are the pipeline's (preprocessing.add_removal_columns and
+# add_completion_columns); the tables here carry them as written.
 GAMES = pd.DataFrame(
     {
         "gameId": ["g1", "g2", "g0"],
         "condition": ["social_mixed", "refer_separated", None],
         "activeGroups": [3, 1, 3],
+        "ranToCompletion": [True, False, True],
+        "completeNine": [False, False, True],
     }
 )
 # g1: group A keeps one of two, group B keeps one of two, group C keeps both;
@@ -48,6 +52,10 @@ PLAYERS = pd.DataFrame(
         "isActive": [True, False, True, False, True, True, False, False, True, True],
         "exitReason": [None, "player timeout", None, "group disbanded", None, None,
                        "low accuracy", "low accuracy", None, None],
+        "removed": [False, True, False, True, False, False, True, True, False, False],
+        "removalReason": [None, "idle", None, "group disbanded", None, None,
+                          "low accuracy", "low accuracy", None, None],
+        "removedNoFault": [False, False, False, True, False, False, False, False, False, False],
         "exitSurvey_understood": ["yes", "yes", None, "yes", None, None, None, None, "Yes", "yes"],
         "exitSurvey_groupIdentification": ["6", "3", None, "7", None, None, None, None, "5", "7"],
         "exitSurvey_feltHuman": ["yes", "no", None, "yes", None, None, None, None, "no", "no"],
@@ -56,7 +64,7 @@ PLAYERS = pd.DataFrame(
 )
 
 
-def test_player_attrition_classifies_removals_and_no_fault():
+def test_player_attrition_reads_the_pipelines_columns_for_the_real_games():
     pa = player_attrition(PLAYERS, GAMES)
     assert len(pa) == 9, "players of the test game are left out"
     by = pa.set_index("playerId")
@@ -73,7 +81,7 @@ def test_group_and_game_status_follow_the_servers_rules():
     assert not lost.loc[("g1", "C")]
     assert lost.loc[("g2", "A")] and lost.loc[("g2", "B")]
     assert int(ga["lost"].sum()) == 4
-    status = game_status(PLAYERS, GAMES).set_index("gameId")
+    status = game_status(GAMES).set_index("gameId")
     assert status.loc["g1", "ran_to_completion"] and not status.loc["g1", "complete_nine"]
     assert not status.loc["g2", "ran_to_completion"]
     assert "g0" not in status.index

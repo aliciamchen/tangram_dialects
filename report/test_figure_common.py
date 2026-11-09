@@ -123,19 +123,14 @@ def test_draw_stimulus_is_upright_whichever_way_the_y_axis_runs():
 
 
 def _dataset(tmp_path) -> types.SimpleNamespace:
-    """Three nine-player games: one whole, one that lost a player, one that ended with one group; the primary H4a test and the complete-games reruns of H1/H2 and H4a."""
+    """Three games as the pipeline codes them: one whole, one that lost a player, one that ended with one group; the primary H4a test and the complete-games reruns of H1/H2 and H4a."""
     tables, estimates = tmp_path / "tables", tmp_path / "estimates"
     tables.mkdir()
     (estimates / "primary").mkdir(parents=True)
-    rows = []
-    for game, (removed, reason) in {"whole": (0, None), "short": (1, "player timeout"), "ended": (6, "insufficient groups")}.items():
-        for i in range(9):
-            rows.append({"gameId": game, "playerId": f"{game}{i}", "originalGroup": "ABC"[i // 3],
-                         "isActive": i >= removed, "exitReason": reason if i < removed else None})
-    pd.DataFrame(rows).to_csv(tables / "players.csv", index=False)
-    pd.DataFrame({"gameId": ["whole", "short", "ended"], "condition": ["refer_mixed"] * 3, "activeGroups": [3, 3, 1]}).to_csv(
-        tables / "games.csv", index=False
-    )
+    pd.DataFrame({
+        "gameId": ["whole", "short", "ended"], "condition": ["refer_mixed"] * 3, "activeGroups": [3, 3, 1],
+        "ranToCompletion": [True, True, False], "completeNine": [True, False, False],
+    }).to_csv(tables / "games.csv", index=False)
     pd.DataFrame({"analysis": ["h4a"], "term": ["H4a"], "p_value": [0.1], "n_games": [59]}).to_csv(
         estimates / "primary" / "h4.csv", index=False
     )

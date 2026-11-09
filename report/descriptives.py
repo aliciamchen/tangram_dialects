@@ -41,22 +41,12 @@ from report.stats_tex import condition_macro_name, fmt_count, fmt_stat, stats_fi
 
 SOURCE = "report/descriptives.py"
 
-# ── Attrition definitions ────────────────────────────────────
-# The server's exit reasons (EXIT_REASONS in experiment/shared/constants.js)
-# and the report category each falls in. A removal is through no fault of the
-# participant when their group fell apart, too few groups remained for the
-# game to go on, or the batch was stopped; those players are compensated for
-# their time and reported apart from the players removed for their own
-# inactivity or their group's low accuracy.
-REMOVAL_REASONS = {
-    "player timeout": "idle",
-    "low accuracy": "low accuracy",
-    "group disbanded": "group disbanded",
-    "insufficient groups": "insufficient groups",
-    "insufficient groups after accuracy check": "insufficient groups",
-    "game terminated": "game terminated",
-}
-NO_FAULT_REASONS = {"group disbanded", "insufficient groups", "game terminated"}
+# ── Attrition ────────────────────────────────────────────────
+# Who was removed and why, and which games ran to completion, are columns the
+# pipeline writes (`removed`, `removalReason` and `removedNoFault` on
+# players.csv, `ranToCompletion` and `completeNine` on games.csv; the
+# definitions are in preprocessing/preprocessing.py). The helpers here read
+# them for the real games and add the one group-level fact.
 MIN_GROUP_SIZE = 2  # the server removes a group's last member once it falls below this
 
 
@@ -110,16 +100,14 @@ def load_tables(dirs) -> dict:
 def player_attrition(players: pd.DataFrame, games: pd.DataFrame) -> pd.DataFrame:
     """One row per player of a real game: condition, removed, reason, no_fault.
 
-    A player was removed when `isActive` is false; the reason is the report
-    category of their exit reason ("other" when the server's reason is not
-    one of the known ones) and "completed" for everyone else.
+    The removal facts are the pipeline's; `reason` is the player's
+    `removalReason`, and "completed" for a player who finished.
     """
     real = games[games["condition"].notna()][["gameId", "condition"]]
     out = players.merge(real, on="gameId", how="inner")
-    out["removed"] = ~_true(out["isActive"])
-    reason = out["exitReason"].map(REMOVAL_REASONS)
-    out["reason"] = np.where(out["removed"], reason.where(reason.notna(), "other"), "completed")
-    out["no_fault"] = out["removed"] & out["reason"].isin(NO_FAULT_REASONS)
+    out["removed"] = _true(out["removed"])
+    out["reason"] = out["removalReason"].where(out["removed"], "completed")
+    out["no_fault"] = _true(out["removedNoFault"])
     return out[["gameId", "playerId", "condition", "originalGroup", "removed", "reason", "no_fault"]]
 
 
@@ -135,16 +123,11 @@ def group_attrition(players: pd.DataFrame, games: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def game_status(players: pd.DataFrame, games: pd.DataFrame) -> pd.DataFrame:
-    """One row per real game: ran to completion (two or more groups reached the end) and complete nine-player."""
-    pa = player_attrition(players, games)
-    per_game = pa.groupby("gameId").agg(players=("removed", "size"), removed=("removed", "sum")).reset_index()
-    out = games[games["condition"].notna()][["gameId", "condition", "activeGroups"]].merge(per_game, on="gameId", how="left")
-    out["players"] = out["players"].fillna(0).astype(int)
-    out["removed"] = out["removed"].fillna(0).astype(int)
-    active = pd.to_numeric(out["activeGroups"], errors="coerce")
-    out["ran_to_completion"] = active.notna() & (active >= 2)
-    out["complete_nine"] = out["ran_to_completion"] & (out["players"] == 9) & (out["removed"] == 0)
+def game_status(games: pd.DataFrame) -> pd.DataFrame:
+    """One row per real game: `ran_to_completion` and `complete_nine`, the pipeline's `ranToCompletion` and `completeNine`."""
+    out = games[games["condition"].notna()][["gameId", "condition"]].copy()
+    out["ran_to_completion"] = _true(games.loc[out.index, "ranToCompletion"])
+    out["complete_nine"] = _true(games.loc[out.index, "completeNine"])
     return out
 
 
@@ -276,7 +259,7 @@ def condition_counts(t: dict) -> pd.DataFrame:
     """Per condition: games started, run to completion and complete with nine players; players, players
     removed (and removed through no fault of their own), original groups lost, and excluded participants."""
     games, players = t["games"], t["players"]
-    status = game_status(players, games)
+    status = game_status(games)
     pa = player_attrition(players, games)
     ga = group_attrition(players, games)
     excluded = pa[pa["playerId"].isin(t["participant_exclusions"]["playerId"])] if not t["participant_exclusions"].empty else pa.iloc[0:0]
@@ -321,7 +304,7 @@ def overview_macros(t: dict) -> dict:
     games, players, trials = t["games"], t["players"], t["trials"]
     pa = player_attrition(players, games)
     ga = group_attrition(players, games)
-    status = game_status(players, games)
+    status = game_status(games)
     excluded_rows = in_conditions(trials)
     excluded_rows = excluded_rows[_true(excluded_rows["excluded"])] if "excluded" in trials.columns else excluded_rows.iloc[0:0]
     without, speaker_trials = description_coverage(trials, t["speaker_utts"])
