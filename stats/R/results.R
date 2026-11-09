@@ -20,9 +20,11 @@
 #
 # Tests: stats/tests/test_results.R
 
-# The short hash of HEAD, suffixed -dirty when tracked files have uncommitted
-# changes, or "unknown" without git. The same string preprocessing/provenance.py
-# writes on the Python side.
+# The short hash of HEAD, suffixed -dirty when a tracked file outside results/
+# has uncommitted changes, or "unknown" without git. The results tree is left
+# out of the check because it is what a run writes: the first script to finish
+# would otherwise mark every later one dirty. The same string
+# preprocessing/provenance.py writes on the Python side.
 git_commit <- function() {
   run <- function(...) {
     out <- tryCatch(
@@ -35,8 +37,21 @@ git_commit <- function() {
   if (is.null(head) || length(head) == 0) {
     return("unknown")
   }
-  dirty <- run("-C", shQuote(here::here()), "status", "--porcelain", "--untracked-files=no")
-  if (length(dirty) > 0 && any(nzchar(dirty))) paste0(head[1], "-dirty") else head[1]
+  dirty <- run(
+    "-C",
+    shQuote(here::here()),
+    "status",
+    "--porcelain",
+    "--untracked-files=no",
+    "--",
+    ".",
+    shQuote(":(exclude)results")
+  )
+  if (length(dirty) > 0 && any(nzchar(dirty))) {
+    paste0(head[1], "-dirty")
+  } else {
+    head[1]
+  }
 }
 
 check_estimates_name <- function(name) {
@@ -59,13 +74,17 @@ write_estimates <- function(
   path <- file.path(dir, paste0(name, ".csv"))
   dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
   readr::write_csv(df, path, na = "")
-  update_manifest(dir, name, list(
-    file = paste0(name, ".csv"),
-    source = source,
-    rows = nrow(df),
-    columns = as.list(names(df)),
-    commit = git_commit()
-  ))
+  update_manifest(
+    dir,
+    name,
+    list(
+      file = paste0(name, ".csv"),
+      source = source,
+      rows = nrow(df),
+      columns = as.list(names(df)),
+      commit = git_commit()
+    )
+  )
   cat("Wrote", nrow(df), "rows to", path, "\n")
   invisible(path)
 }
@@ -80,8 +99,15 @@ update_manifest <- function(dir, name, entry, timeout = 30) {
   deadline <- Sys.time() + timeout
   while (!dir.create(lock, showWarnings = FALSE)) {
     if (Sys.time() > deadline) {
-      stop(sprintf("could not lock %s within %d seconds (remove %s if no script is running)",
-                   manifest_path, timeout, lock), call. = FALSE)
+      stop(
+        sprintf(
+          "could not lock %s within %d seconds (remove %s if no script is running)",
+          manifest_path,
+          timeout,
+          lock
+        ),
+        call. = FALSE
+      )
     }
     Sys.sleep(0.1)
   }
@@ -93,7 +119,12 @@ update_manifest <- function(dir, name, entry, timeout = 30) {
   }
   manifest[[name]] <- entry
   manifest <- manifest[order(names(manifest))]
-  jsonlite::write_json(manifest, manifest_path, auto_unbox = TRUE, pretty = TRUE)
+  jsonlite::write_json(
+    manifest,
+    manifest_path,
+    auto_unbox = TRUE,
+    pretty = TRUE
+  )
   invisible(manifest_path)
 }
 
@@ -117,7 +148,9 @@ require_estimates <- function(name, written_by, dir = estimates_dir) {
     stop(
       sprintf(
         "%s/%s.csv is missing or empty; run `Rscript %s` first (or `make estimates`).",
-        dir, name, written_by
+        dir,
+        name,
+        written_by
       ),
       call. = FALSE
     )
