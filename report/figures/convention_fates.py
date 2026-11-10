@@ -33,7 +33,6 @@ dropped it above (taken over, then gone, in ABSENT gray)."""
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 
 from report.figures._common import (

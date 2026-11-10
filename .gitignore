@@ -4,7 +4,6 @@ _output/
 .Rproj.user
 scaffolding.R
 .Rhistory
-.Rprofile
 .DS_Store
 .env
 *.Rproj

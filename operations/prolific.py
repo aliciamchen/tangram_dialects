@@ -37,7 +37,6 @@ PARTIAL_CODE = PROLIFIC_CODES["partial"]
 BASE_PAY = GAME["base_pay"]
 LOBBY_TIMEOUT_PAY = GAME["lobby_timeout_pay"]
 CONDITIONS = GAME["conditions"]
-PLAYERS_PER_GAME = GAME["players_per_game"]
 
 # Transient failures worth retrying: Prolific rate limiting, and its own 5xx.
 RETRY_STATUSES = {429, 500, 502, 503, 504}
