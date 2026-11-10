@@ -38,6 +38,7 @@ from report.plot_style import (
     CONDITION_COLORS,
     CONDITION_LABELS,
     CONDITION_ORDER,
+    draw_order,
     GAME_BLOCKS,
     INK,
     MEAN_LINE,
@@ -94,7 +95,7 @@ def plot(df: pd.DataFrame):
 
 
 def _games(ax, table: pd.DataFrame) -> list:
-    for c in CONDITION_ORDER:
+    for c in draw_order():
         t = table[table["condition"] == c].sort_values("x")
         if t.empty:
             continue

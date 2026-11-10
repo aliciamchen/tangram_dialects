@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 from report.figures._common import in_conditions, numeric, panel_figure, read_measure
-from report.plot_style import CONDITION_COLORS, CONDITION_ORDER, GAME_LINE, MEAN_LINE, PANEL_AXES
+from report.plot_style import CONDITION_COLORS, GAME_LINE, draw_order, MEAN_LINE, PANEL_AXES
 
 MARGINS = dict(left=0.5, right=0.15, top=0.12, bottom=0.55)  # the y label, nothing, nothing, the two-line x label
 
@@ -37,7 +37,7 @@ def _ecdf(values) -> tuple[np.ndarray, np.ndarray]:
 
 def plot(df: pd.DataFrame):
     fig, ax = panel_figure(axes=PANEL_AXES, **MARGINS)
-    for c in CONDITION_ORDER:
+    for c in draw_order():
         part = df[df["condition"] == c]
         for _, game in part.groupby("gameId"):
             ax.plot(*_ecdf(game["value"]), color=CONDITION_COLORS[c], drawstyle="steps-post", zorder=1, **GAME_LINE)

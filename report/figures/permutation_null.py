@@ -26,7 +26,6 @@ import pandas as pd
 from report.figures._common import estimates, panel_figure, specificity_endpoints
 from report.plot_style import (
     CONDITION_COLORS,
-    CONDITION_ORDER,
     NULL_BAND,
     REFERENCE_LINE,
     LABEL_SIZE,
@@ -34,6 +33,7 @@ from report.plot_style import (
     ROW_CONNECTOR,
     ROW_POINT,
     TITLE_SIZE,
+    draw_order,
 )
 
 LIMITS = (-0.25, 0.8)
@@ -54,7 +54,7 @@ def plot(df: pd.DataFrame):
     d["y"] = len(d) - d.index  # the highest Phase 2 value in the top row
     ax.axvline(0, **REFERENCE_LINE)
     ax.hlines(d["y"], d["lower"], d["upper"], zorder=1, **NULL_BAND)
-    for condition in CONDITION_ORDER:
+    for condition in draw_order():
         color = CONDITION_COLORS[condition]
         g = d[d["condition"] == condition]
         with_end = g.dropna(subset=["phase2"])

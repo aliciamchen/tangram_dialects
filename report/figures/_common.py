@@ -110,6 +110,8 @@ from report.plot_style import (
     CONDITION_LABELS,
     CONDITION_MARKERS,
     CONDITION_ORDER,
+    DRAW_ORDER,
+    draw_order,
     DIRECT_LABEL_IN_COLOR,
     GAME_LINE,
     GAME_POINT,
@@ -412,10 +414,10 @@ def draw_trajectory(
     games = table[table["level"] == "game"]
     summary = table[table["level"] == "condition"]
     if game_lines:
-        for (_, c), g in games.groupby(["gameId", "condition"]):
+        for (_, c), g in sorted(games.groupby(["gameId", "condition"]), key=lambda kv: DRAW_ORDER.index(kv[0][1])):
             for part in phase_segments(g.sort_values("gameBlock")):
                 ax.plot(part["gameBlock"], part["value"], color=CONDITION_COLORS[c], linestyle=linestyle, zorder=1, **GAME_LINE)
-    for c in conditions:
+    for c in draw_order(conditions):
         s = summary[summary["condition"] == c].sort_values("gameBlock")
         if s.empty:
             continue
@@ -455,7 +457,7 @@ def draw_scatter(ax, table: pd.DataFrame, conditions=CONDITION_ORDER, shapes: bo
     so that the shapes read in print; otherwise every point is a circle."""
     games = table[table["level"] == "game"]
     summary = table[table["level"] == "condition"]
-    for c in conditions:
+    for c in draw_order(conditions):
         color = CONDITION_COLORS[c]
         marker = CONDITION_MARKERS[c] if shapes else "o"
         area = MARKER_AREA[marker]

@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 from report.figures._common import panel_figure, specificity_endpoints
-from report.plot_style import CONDITION_COLORS, CONDITION_ORDER, NOTE_SIZE, PHASE_POINT, REFERENCE_GRAY, REFERENCE_LINE, SQUARE_PANEL_AXES
+from report.plot_style import CONDITION_COLORS, NOTE_SIZE, draw_order, PHASE_POINT, REFERENCE_GRAY, REFERENCE_LINE, SQUARE_PANEL_AXES
 
 MARGINS = dict(left=0.62, right=0.12, top=0.12, bottom=0.55)  # the two-line y label, nothing, nothing, the two-line x label
 PHASES = {1: "phase1", 2: "phase2"}
@@ -45,7 +45,7 @@ def plot(df: pd.DataFrame):
     ax.plot([lo, hi], [lo, hi], zorder=0, **REFERENCE_LINE)
     ax.annotate("equal", xy=(hi, hi), xytext=(-1, 1), textcoords="offset points", ha="right", va="bottom",
                 rotation=45, rotation_mode="anchor", fontsize=NOTE_SIZE, color=REFERENCE_GRAY)
-    for condition in CONDITION_ORDER:
+    for condition in draw_order():
         color = CONDITION_COLORS[condition]
         for phase, face in ((1, color), (2, "white")):
             g = df[(df["condition"] == condition) & (df["phase"] == phase)]

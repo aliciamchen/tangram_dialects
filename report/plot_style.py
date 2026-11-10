@@ -31,6 +31,16 @@ import numpy as np
 
 CONDITION_ORDER = ["refer_separated", "refer_mixed", "social_mixed", "social_first"]
 
+# The order in which overlapping marks are drawn, the last on top: social_mixed,
+# the lighter red, goes over social_first so that it is not hidden by it.
+DRAW_ORDER = ["refer_separated", "refer_mixed", "social_first", "social_mixed"]
+
+
+def draw_order(conditions=CONDITION_ORDER) -> list[str]:
+    """`conditions` in DRAW_ORDER, for a loop that draws overlapping marks."""
+    return sorted(conditions, key=DRAW_ORDER.index)
+
+
 CONDITION_LABELS = {
     "refer_separated": "Refer separated",
     "refer_mixed": "Refer mixed",
