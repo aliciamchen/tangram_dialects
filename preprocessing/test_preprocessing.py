@@ -1407,12 +1407,11 @@ class TestExclusionEndToEnd:
         """The measures are computed from the post-exclusion utterances.
 
         Separate from the test above, and skipped where the sentence-transformer stack is not
-        installed, because CI deliberately runs this file without nltk and the
-        sentence-transformer dependencies (see .github/workflows/ci.yml). Keeping
-        it in the same test cost CI the preprocessing assertions too, which are
+        installed, because CI deliberately runs this file without it (see
+        .github/workflows/ci.yml) and the preprocessing assertions above are
         the ones worth having there.
         """
-        pytest.importorskip("nltk")
+        pytest.importorskip("sentence_transformers")
         from preprocessing.compute_measures import compute_lexical_uniqueness
 
         raw = _raw_dataset(tmp_path)

@@ -12,6 +12,8 @@ dependencies = [
     "sentence-transformers>=3.0",
     "wordfreq>=3.0",
     "nltk>=3.8",
+    # The convention-examples figure (PCA layout, isotonic fit)
+    "scikit-learn>=1.4",
     # The message filter (Gemini on Vertex AI)
     "google-genai>=1.0.0",
     "python-dotenv>=1.0.0",
