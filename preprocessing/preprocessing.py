@@ -122,6 +122,8 @@ def build_games(game_df: pd.DataFrame) -> pd.DataFrame:
         "ended": "ended",
         "endedReason": "endedReason",
         "gameTerminated": "gameTerminated",
+        "callbackErrors": "callbackErrors",
+        "lastCallbackError": "lastCallbackError",
     }
     games = games.rename(columns={c: rename_map[c] for c in cols})
 

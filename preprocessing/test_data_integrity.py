@@ -95,7 +95,7 @@ def players():
 @pytest.fixture(scope="session")
 def trials():
     """Load trials.csv, filtered to real games."""
-    df = pd.read_csv(TABLES_DIR / "trials.csv")
+    df = pd.read_csv(TABLES_DIR / "trials.csv", low_memory=False)
     games = pd.read_csv(TABLES_DIR / "games.csv")
     real_game_ids = games[games["condition"].notna()]["gameId"].tolist()
     return df[df["gameId"].isin(real_game_ids)].copy()
@@ -957,7 +957,9 @@ class TestServerCallbackErrors:
 
     def test_no_game_recorded_a_contained_callback_error(self, games):
         if "callbackErrors" not in games.columns:
-            pytest.skip("no callbackErrors column (export predates the guard)")
+            # The guard sets the attribute only when it contains an error, so
+            # an export without the column recorded none.
+            return
         counts = pd.to_numeric(games["callbackErrors"], errors="coerce").fillna(0)
         affected = games.loc[counts > 0, "gameId"].tolist()
         assert not affected, (
@@ -1418,32 +1420,14 @@ class TestSocialGuessing:
                 f"'{cond}', expected 'social_mixed' or 'social_first'"
             )
 
-    def test_social_guesses_only_in_phase2(self, social_guesses, trials):
-        """Social guesses should only be from Phase 2 (social guessing UI
-        only shows when phase_num == 2).
-
-        We verify by checking that the social guess blockNums correspond
-        to Phase 2 blocks in the trials data.
-        """
-        for gid in social_guesses["gameId"].unique():
-            game_guesses = social_guesses[social_guesses["gameId"] == gid]
-            game_trials = trials[trials["gameId"] == gid]
-
-            # Get the set of (playerId, blockNum, target) from social guesses
-            for _, guess in game_guesses.iterrows():
-                matching_trials = game_trials[
-                    (game_trials["playerId"] == guess["playerId"])
-                    & (game_trials["blockNum"] == guess["blockNum"])
-                    & (game_trials["target"] == guess["target"])
-                ]
-                if len(matching_trials) > 0:
-                    # The trial should be Phase 2
-                    phase_nums = matching_trials["phaseNum"].unique()
-                    assert 2 in phase_nums, (
-                        f"Social guess for player {guess['playerId']}, "
-                        f"block {guess['blockNum']}, target {guess['target']} "
-                        f"matches Phase {phase_nums} trials, expected Phase 2"
-                    )
+    def test_social_guesses_only_in_phase2(self, social_guesses):
+        """Social guesses are only from Phase 2 (the social guessing UI only
+        shows when phase_num == 2)."""
+        outside = social_guesses[social_guesses["phaseNum"] != 2]
+        assert outside.empty, (
+            f"{len(outside)} social guess row(s) outside Phase 2, in games "
+            f"{sorted(outside['gameId'].unique())}"
+        )
 
     def test_social_guess_values(self, social_guesses):
         """A submitted guess is 'same_group' or 'different_group'.

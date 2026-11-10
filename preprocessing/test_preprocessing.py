@@ -1001,6 +1001,11 @@ class TestGamesProvenance:
         assert games["batchId"].tolist() == ["batch1"]
         assert games["sourceRun"].tolist() == ["20260301_132907"]
 
+    def test_contained_callback_errors_are_carried_into_games_csv(self):
+        games = build_games(_game_df(callbackErrors=[2], lastCallbackError=["onRoundEnded: boom"]))
+        assert games["callbackErrors"].tolist() == [2]
+        assert games["lastCallbackError"].tolist() == ["onRoundEnded: boom"]
+
     def test_an_export_without_them_still_has_the_columns(self):
         games = build_games(_game_df())
         assert games["batchId"].isna().all() and games["sourceRun"].isna().all()
