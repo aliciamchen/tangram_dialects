@@ -24,7 +24,6 @@ import pandas as pd
 from preprocessing.dataset_paths import (
     RAW_CSV_FILES,
     RUNS_DIR,
-    TIMESTAMP_DIR_PATTERN,
     add_dataset_argument,
     dataset_dirs,
 )

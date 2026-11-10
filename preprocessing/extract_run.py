@@ -27,7 +27,6 @@ import pandas as pd
 
 from preprocessing.dataset_paths import (
     PROJECT_ROOT,
-    RAW_CSV_FILES,
     RUNS_DIR,
     TIMESTAMP_DIR_PATTERN,
     add_dataset_argument,
@@ -228,7 +227,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_dataset_argument(extract)
     extract.add_argument(
         "--no-register", action="store_true",
-        help="Do not add the run to data/<dataset>/runs.txt (used by make smoke)",
+        help="Do not add the run to data/<dataset>/runs.txt",
     )
 
     sub.add_parser("list", help="List the extracted runs in data/runs/")

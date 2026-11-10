@@ -1312,6 +1312,22 @@ def code_accuracy(
     return correct, on_time
 
 
+def check_technical_exclusions(exclusions: pd.DataFrame, trials: pd.DataFrame) -> None:
+    """Refuse a technical exclusion that names no listener trial, which would otherwise change nothing and still be counted."""
+    if exclusions.empty:
+        return
+    keys = ["gameId", "playerId", "roundId"]
+    listeners = trials[trials["role"] == "listener"]
+    known = pd.MultiIndex.from_frame(exclusions[keys].astype(str)).isin(
+        pd.MultiIndex.from_frame(listeners[keys].astype(str))
+    )
+    if not known.all():
+        raise ValueError(
+            f"{TECHNICAL_EXCLUSIONS_FILE} names {int((~known).sum())} row(s) that match no listener "
+            f"trial:\n{exclusions.loc[~known, keys].to_string(index=False)}"
+        )
+
+
 def apply_technical_exclusions(
     df: pd.DataFrame, exclusions: pd.DataFrame, outcome: str, column: str = "correct"
 ) -> pd.DataFrame:
@@ -1886,6 +1902,7 @@ def main():
     )
     trials = add_server_network_columns(trials, player_round_df, round_df)
     trials = apply_participant_exclusions(trials, exclusions)
+    check_technical_exclusions(technical, trials)
     trials = code_trial_outcomes(add_analysis_columns(trials, games), technical)
     if not exclusions.empty:
         excluded_ids = set(exclusions["playerId"])

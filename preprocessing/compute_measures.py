@@ -13,6 +13,7 @@ Usage:
 import argparse
 import re
 import sys
+from collections import Counter, defaultdict
 from itertools import combinations
 from pathlib import Path
 
@@ -246,15 +247,10 @@ def compute_phase_change_similarities(
     df = utterances.copy()
     df["embedding_idx"] = range(len(df))
 
-    # Get phase1Blocks per game to determine final block of each phase
-    game_blocks = games.set_index("gameId")["phase1Blocks"].to_dict()
-
     rows = []
     for (game, player, target), group_data in df.groupby(
         ["gameId", "playerId", "target"]
     ):
-        p1_blocks = game_blocks.get(game, 6)
-
         phase1_data = group_data[group_data["phaseNum"] == 1]
         phase2_data = group_data[group_data["phaseNum"] == 2]
 
@@ -555,6 +551,12 @@ def compute_lexical_uniqueness(
             all_words.update(extract_content_word_tokens(text))
         group_words[(game_id, grp, target, int(phase))] = all_words
 
+    # How many groups use each word for a tangram in a phase, so that a word is
+    # some other group's when that count, less the speaker's own group, is positive
+    groups_using: dict[tuple[str, int], Counter] = defaultdict(Counter)
+    for (_, _, target, phase), words in group_words.items():
+        groups_using[(target, phase)].update(words)
+
     rows = []
     for _, row in utterances.iterrows():
         tokens = extract_content_word_tokens(row["utterance"])
@@ -571,16 +573,10 @@ def compute_lexical_uniqueness(
 
         # Words from all other groups (across all games) for the same tangram
         # in the same phase
-        other_words: set[str] = set()
-        for (g_id, grp, tgt, phase), words in group_words.items():
-            if (
-                tgt == row["target"]
-                and phase == int(row["phaseNum"])
-                and not (g_id == row["gameId"] and grp == row["originalGroup"])
-            ):
-                other_words.update(words)
-
-        n_unique = sum(1 for w in tokens if w not in other_words)
+        phase = int(row["phaseNum"])
+        used_by = groups_using[(row["target"], phase)]
+        own_words = group_words.get((row["gameId"], row["originalGroup"], row["target"], phase), set())
+        n_unique = sum(1 for w in tokens if used_by[w] - (w in own_words) == 0)
         rows.append(
             {
                 **row,
@@ -809,7 +805,7 @@ def main():
     print(f"  {len(phase_change)} phase change similarity values")
 
     # --- H3c description properties ---
-    print("Computing description properties (abstractness, word frequency)...")
+    print("Computing description properties (concreteness, word frequency, lexical uniqueness)...")
     desc_props = compute_description_properties(utterances, games)
     desc_props.to_csv(output_dir / "description_properties.csv", index=False)
     print(f"  Description properties: {len(desc_props)} rows")

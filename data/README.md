@@ -91,7 +91,7 @@ One row per player.
 | `quizAttempts` | How many attempts the player took to pass the comprehension quiz, out of three |
 | `shuffledTangrams` | The order the 16 tangrams appeared in on this player's own grid, as a JSON list. Every player sees a different order, which is what makes position-based descriptions fail |
 | `partialPay`, `partialBasePay`, `partialBonus` | Compensation of a removed player: the total, the time-prorated base pay and the bonus (zero for idle removals); empty for players who finished |
-| `phase1LengthChange` | Mean word count of the player's descriptions in their last Phase 1 block as speaker minus that in their first, from the unfiltered utterances; empty if they spoke in fewer than two Phase 1 blocks |
+| `phase1LengthChange` | Mean word count of the player's descriptions in their last Phase 1 block as speaker minus that in their first, from the unfiltered utterances; empty if they spoke in fewer than two Phase 1 blocks, and for an excluded participant, whose messages are removed before it is computed |
 | `lengthIncreaseFlag` | Whether `phase1LengthChange` exceeds 5 words. Lengthening descriptions are the signature of the simulated LLM agents, so flagged players' chat logs are inspected for AI use; the flag triggers an inspection, not an exclusion |
 | `exitSurvey_understood` | Understood the instructions (`yes`/`no`) |
 | `exitSurvey_groupIdentification` | "How much did you feel a sense of being a part of your Phase 1 group?" (1 to 7) |

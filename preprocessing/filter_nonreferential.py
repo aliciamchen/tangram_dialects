@@ -20,7 +20,6 @@ Subcommands:
 from __future__ import annotations
 
 import argparse
-import json
 import math
 import os
 import re
@@ -414,8 +413,8 @@ def cmd_validate(args):
     from collections import Counter
     pairs = list(zip(merged["human_label"], merged["llm_label"]))
     counts = Counter(pairs)
-    print(f"\nConfusion matrix (human x LLM):")
-    print(f"              LLM_R   LLM_NR")
+    print("\nConfusion matrix (human x LLM):")
+    print("              LLM_R   LLM_NR")
     print(f"  Human_R:    {counts.get(('R','R'), 0):5d}    {counts.get(('R','NR'), 0):5d}")
     print(f"  Human_NR:   {counts.get(('NR','R'), 0):5d}    {counts.get(('NR','NR'), 0):5d}")
 

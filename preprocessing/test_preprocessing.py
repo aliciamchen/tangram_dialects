@@ -1827,6 +1827,15 @@ class TestCodedOutcomes:
         by = preprocessing.code_trial_outcomes(self.trials(), technical).set_index("playerId")
         assert pd.isna(by.loc["p2", "correct"]) and by.loc["p3", "correct"] == 0
 
+    def test_a_technical_exclusion_that_matches_no_listener_trial_is_refused(self):
+        row = {"gameId": "g1", "playerId": "p2", "roundId": "r1", "outcome": "referential", "reason": "x"}
+        trials = self.trials().assign(role="listener")
+        preprocessing.check_technical_exclusions(pd.DataFrame([row]), trials)
+        with pytest.raises(ValueError, match="match no listener trial"):
+            preprocessing.check_technical_exclusions(pd.DataFrame([{**row, "roundId": "r9"}]), trials)
+        with pytest.raises(ValueError, match="match no listener trial"):
+            preprocessing.check_technical_exclusions(pd.DataFrame([row]), trials.assign(role="speaker"))
+
     def test_technical_exclusions_file_is_validated(self, tmp_path):
         assert preprocessing.read_technical_exclusions(tmp_path / "none.csv").empty
         bad = tmp_path / "technical_exclusions.csv"

@@ -8,7 +8,7 @@ and model_inputs/.
 
 Usage:
     uv run python -m preprocessing.process_data                          # run full pipeline on $DATASET (default full)
-    uv run python -m preprocessing.process_data --dataset full           # another dataset
+    uv run python -m preprocessing.process_data --dataset smoke          # another dataset
     uv run python -m preprocessing.process_data --skip-filter            # skip Vertex AI step
     uv run python -m preprocessing.process_data --skip-measures          # skip the SBERT step
     uv run python -m preprocessing.process_data --skip-model-inputs      # skip the model inputs
@@ -119,7 +119,7 @@ def main():
 
     if not dirs.raw.is_dir():
         print(f"Error: {dirs.raw} does not exist.", file=sys.stderr)
-        print("Either the raw data is not committed, or you need to run:", file=sys.stderr)
+        print("Extract and combine the exports first:", file=sys.stderr)
         print("  uv run python -m preprocessing.extract_run <zip>", file=sys.stderr)
         print(f"  uv run python -m preprocessing.combine_runs --dataset {dirs.name} <runs...>", file=sys.stderr)
         sys.exit(1)

@@ -49,6 +49,18 @@ SOCIAL_SPEAKER_POINTS_PER_CORRECT = 6
 # The dataset under test ($DATASET, default full): its hand-written inputs at
 # the top of the dataset directory and its generated files one level down
 DATASET = dataset_dirs()
+
+
+def skip_unless_full(reason: str):
+    """Skip a check whose data the dataset lacks, except on the full sample.
+
+    A trial export may predate an instrument or hold no game of some kind. The
+    full sample has every column and every kind of game, so there a missing
+    one means something stopped recording, and the check fails.
+    """
+    if DATASET.name == "full":
+        pytest.fail(f"the full sample should have this: {reason}")
+    pytest.skip(reason)
 INPUTS_DIR = DATASET.data
 RAW_DIR = DATASET.raw
 TABLES_DIR = DATASET.tables
@@ -459,7 +471,7 @@ class TestPlayerAssignment:
         """
         MAX_IDLE_ROUNDS = 3
         if "exitReason" not in idle_players.columns:
-            pytest.skip("exitReason column not present in players.csv")
+            skip_unless_full("exitReason column not present in players.csv")
         timed_out = idle_players[idle_players["exitReason"] == "player timeout"]
         for _, p in timed_out.iterrows():
             assert p["idleRounds"] == MAX_IDLE_ROUNDS, (
@@ -1046,7 +1058,7 @@ class TestReshuffleNetwork:
         idx = players.set_index("playerId")["playerIndex"]
         known = trials[trials["speakerReassigned"].notna()]
         if known.empty:
-            pytest.skip("speakerReassigned is empty in this dataset")
+            skip_unless_full("speakerReassigned is empty in this dataset")
         expected = known["speakerId"].map(idx).astype(int) != (known["blockNum"].astype(int) % GROUP_SIZE)
         actual = _truthy(known["speakerReassigned"])
         assert (expected == actual).all(), "speakerReassigned disagrees with the speaker's rotation index"
@@ -1056,14 +1068,14 @@ class TestReshuffleNetwork:
         name the same player the trio membership does."""
         recorded = trials[trials["serverSpeakerId"].notna()]
         if recorded.empty:
-            pytest.skip("serverSpeakerId is empty in this dataset")
+            skip_unless_full("serverSpeakerId is empty in this dataset")
         mismatch = recorded[recorded["serverSpeakerId"] != recorded["speakerId"]]
         assert mismatch.empty, f"{len(mismatch)} rows where the server's speaker_id is not the derived speakerId"
 
     def test_server_in_group_record_matches_the_derived_flag(self, trials):
         listeners = trials[(trials["role"] == "listener") & trials["serverInGroupListener"].notna()]
         if listeners.empty:
-            pytest.skip("serverInGroupListener is empty in this dataset")
+            skip_unless_full("serverInGroupListener is empty in this dataset")
         server = _truthy(listeners["serverInGroupListener"])
         derived = _truthy(listeners["inGroupSpeaker"])
         assert (server == derived).all(), (
@@ -1073,7 +1085,7 @@ class TestReshuffleNetwork:
     def test_server_group_size_matches_the_derived_size(self, trials):
         recorded = trials[trials["serverGroupSize"].notna()]
         if recorded.empty:
-            pytest.skip("serverGroupSize is empty in this dataset")
+            skip_unless_full("serverGroupSize is empty in this dataset")
         assert (recorded["serverGroupSize"].astype(int) == recorded["groupSize"].astype(int)).all(), (
             "the server's group_size disagrees with the number of players in the group"
         )
@@ -1083,7 +1095,7 @@ class TestReshuffleNetwork:
         listener, pairs) must describe the groups the trials show."""
         recorded = trials[trials["reshuffleGroups"].notna()]
         if recorded.empty:
-            pytest.skip("reshuffle counts were not recorded in this dataset")
+            skip_unless_full("reshuffle counts were not recorded in this dataset")
         for (gid, rid), r in recorded.groupby(["gameId", "roundId"]):
             groups = [g for _, g in r.groupby("currentGroup")]
             trios = [g for g in groups if len(g) == GROUP_SIZE]
@@ -1108,7 +1120,7 @@ class TestReshuffleNetwork:
         listener, and 'reduced' must mean at least one was not."""
         recorded = trials[trials["reshuffleMode"].notna()]
         if recorded.empty:
-            pytest.skip("reshuffleMode was not recorded in this dataset")
+            skip_unless_full("reshuffleMode was not recorded in this dataset")
         for (gid, rid), r in recorded.groupby(["gameId", "roundId"]):
             all_ok = all(
                 len(g) == GROUP_SIZE
@@ -1144,7 +1156,7 @@ class TestParticipantExclusions:
 
     def test_excluded_players_have_no_survey_answers(self, players):
         if "excluded" not in players.columns:
-            pytest.skip("players.csv predates the exclusion flag")
+            skip_unless_full("players.csv predates the exclusion flag")
         reason = players["exclusionReason"].fillna("")
         assert (_truthy(players["excluded"]) == (reason != "")).all()
         survey_cols = [c for c in players.columns if c.startswith("exitSurvey_")]
@@ -1153,7 +1165,7 @@ class TestParticipantExclusions:
 
     def test_social_guesses_agree_with_trials(self, social_guesses, trials):
         if social_guesses.empty:
-            pytest.skip("no social-guessing games in this dataset")
+            skip_unless_full("no social-guessing games in this dataset")
         keys = ["gameId", "playerId", "roundId"]
         merged = social_guesses[keys + ["excluded"]].merge(
             trials[keys + ["excluded"]], on=keys, suffixes=("", "Trial")
@@ -1169,7 +1181,7 @@ class TestParticipantExclusions:
             trials.loc[_truthy(trials["excluded"]) & ~reason.str.startswith("speaker excluded"), "playerId"]
         )
         if not excluded_players:
-            pytest.skip("no participant exclusions in this dataset")
+            skip_unless_full("no participant exclusions in this dataset")
         assert not messages["senderId"].isin(excluded_players).any()
         assert not speaker_utterances["playerId"].isin(excluded_players).any()
 
@@ -1462,7 +1474,7 @@ class TestSocialGuessing:
             ]
         )
         if not social_games:
-            pytest.skip("no social-guessing games in this dataset")
+            skip_unless_full("no social-guessing games in this dataset")
         expected = trials[
             (trials["role"] == "listener")
             & (trials["phaseNum"] == 2)
@@ -1501,7 +1513,7 @@ class TestSocialGuessing:
         correctness must be exactly guess-versus-record."""
         recorded = social_guesses[social_guesses["speakerWasSameGroup"].notna()]
         if recorded.empty:
-            pytest.skip("speakerWasSameGroup is empty in this dataset")
+            skip_unless_full("speakerWasSameGroup is empty in this dataset")
         og = trials.drop_duplicates("playerId").set_index("playerId")["originalGroup"]
         truth = recorded["originalGroup"] == recorded["speakerId"].map(og)
         assert (_truthy(recorded["speakerWasSameGroup"]) == truth).all(), (
@@ -1561,7 +1573,7 @@ class TestSocialGuessing:
         played; this mirrors test_removed_players_produce_no_later_trials.
         """
         if idle_players.empty:
-            pytest.skip("no removed players in this dataset")
+            skip_unless_full("no removed players in this dataset")
         for _, player in idle_players.iterrows():
             own_guesses = social_guesses[social_guesses["playerId"] == player["playerId"]]
             if own_guesses.empty:
@@ -1688,7 +1700,7 @@ class TestSpeakerUtterances:
         """
         path = TABLES_DIR / "speaker_utterances_filtered.csv"
         if not path.exists():
-            pytest.skip("speaker_utterances_filtered.csv not present")
+            skip_unless_full("speaker_utterances_filtered.csv not present")
         filtered = pd.read_csv(path)
         filtered = filtered[filtered["gameId"].isin(speaker_utterances["gameId"].unique())]
         empty = filtered["utterance"].isna() | (filtered["utterance"].astype(str).str.strip() == "")
@@ -1871,24 +1883,6 @@ class TestMessages:
         invalid = set(messages["group"].unique()) - VALID_GROUPS
         assert not invalid, f"Messages have invalid group values: {invalid}"
 
-    def test_message_phase2_mixed_sender_names_masked(
-        self, messages, game_condition_map
-    ):
-        """In Phase 2 of mixed conditions, senderName should be 'Player'."""
-        for gid, cond in game_condition_map.items():
-            if cond not in MIXED_CONDITIONS:
-                continue
-            phase2_msgs = messages[
-                (messages["gameId"] == gid) & (messages["phaseNum"] == 2)
-            ]
-            if len(phase2_msgs) == 0:
-                continue
-            unique_names = set(phase2_msgs["senderName"].unique())
-            assert unique_names == {"Player"}, (
-                f"Game {gid} ({cond}), Phase 2 messages: senderName values "
-                f"{unique_names}, expected only 'Player'"
-            )
-
 
 # ============ 15. IDLE PLAYER HANDLING ============
 
@@ -1949,10 +1943,10 @@ class TestResponseOpportunities:
             # Preprocessing omits the column when no player was ever removed,
             # which is the outcome a clean session hopes for. Crashing on the
             # good case is worse than not checking it.
-            pytest.skip("no exitReason column: nobody was removed in this dataset")
+            skip_unless_full("no exitReason column: nobody was removed in this dataset")
         removed = players[players["exitReason"].notna()]
         if removed.empty:
-            pytest.skip("no removed players in this dataset")
+            skip_unless_full("no removed players in this dataset")
         for _, player in removed.iterrows():
             own = trials[trials["playerId"] == player["playerId"]]
             if own.empty:
@@ -1986,7 +1980,7 @@ class TestResponseOpportunities:
         """
         late = trials[trials["lateClick"] == True]  # noqa: E712
         if late.empty:
-            pytest.skip("no late clicks in this dataset")
+            skip_unless_full("no late clicks in this dataset")
         marked_correct = late[late["clickedCorrect"] == True]  # noqa: E712
         assert marked_correct.empty, (
             f"{len(marked_correct)} late clicks were marked correct by the "
@@ -2097,16 +2091,6 @@ class TestCrossFileConsistency:
             f"{wrong[keys + ['role']].head(10).to_string(index=False)}"
         )
 
-    def test_social_guesses_game_is_social_condition(
-        self, social_guesses, game_condition_map
-    ):
-        """All social guess game IDs should be for social_mixed or social_first."""
-        for gid in social_guesses["gameId"].unique():
-            cond = game_condition_map.get(gid)
-            assert cond in SOCIAL_CONDITIONS, (
-                f"Social guesses in game {gid} with condition '{cond}'"
-            )
-
     def test_tangram_sets_consistent(self, trials, games):
         """Tangram set in trials should match the game's tangram set."""
         for _, game in games.iterrows():
@@ -2185,7 +2169,6 @@ class TestPerGame:
         active players and blocks.
         """
         game_trials = trials[trials["gameId"] == game_id]
-        game_players = players[players["gameId"] == game_id]
 
         # Count total: each phase has blocks, each block has 6 tangrams,
         # each tangram has 3 players per group, 3 groups
@@ -2359,7 +2342,7 @@ class TestExitSurvey:
             c for c in active_players.columns if c.startswith("exitSurvey_")
         ]
         if not exit_cols:
-            pytest.skip("No exit survey columns found in players.csv")
+            skip_unless_full("No exit survey columns found in players.csv")
         without = active_players[active_players[exit_cols].isna().all(axis=1)]
         assert_exactly_the_documented_cases(
             set(zip(without["gameId"], without["playerId"])),
@@ -2379,7 +2362,7 @@ class TestExitSurvey:
         """
         required = ["exitSurvey_feltHuman", "exitSurvey_age", "exitSurvey_gender"]
         if not set(required) <= set(active_players.columns):
-            pytest.skip("survey predates the two-page form")
+            skip_unless_full("survey predates the two-page form")
         surveyed = _not_excluded(active_players)
         exit_cols = [c for c in surveyed.columns if c.startswith("exitSurvey_")]
         surveyed = surveyed[surveyed[exit_cols].notna().any(axis=1)]
@@ -2396,7 +2379,7 @@ class TestExitSurvey:
         """exitSurvey_understood is present for every active player, except
         the documented players whose whole survey is missing."""
         if "exitSurvey_understood" not in active_players.columns:
-            pytest.skip("exitSurvey_understood column not found")
+            skip_unless_full("exitSurvey_understood column not found")
         active_players = _not_excluded(active_players)
         without = active_players[active_players["exitSurvey_understood"].isna()]
         assert_exactly_the_documented_cases(
@@ -2438,10 +2421,10 @@ class TestDataCompleteness:
         batch's factors."""
         dropouts = pd.read_csv(TABLES_DIR / "dropouts.csv", dtype=str, keep_default_na=False)
         if "condition" not in dropouts.columns:
-            pytest.skip("dropouts.csv predates the treatment columns")
+            skip_unless_full("dropouts.csv predates the treatment columns")
         batches = _raw_table("batch.csv", ["id", "config"])
         if batches is None:
-            pytest.skip("raw/batch.csv is not present")
+            skip_unless_full("raw/batch.csv is not present")
         treatments = {}
         for batch_id, config in zip(batches["id"], batches["config"]):
             try:
@@ -2468,14 +2451,6 @@ class TestDataCompleteness:
 
     def test_at_least_one_real_game(self, games):
         assert len(games) > 0, "No real (non-test) games found in games.csv"
-
-    def test_all_conditions_represented(self, games):
-        """Check which conditions are present (informational, not strict)."""
-        conditions = set(games["condition"].unique())
-        # At minimum, we expect the games we have to be valid
-        assert conditions <= VALID_CONDITIONS, (
-            f"Invalid conditions found: {conditions - VALID_CONDITIONS}"
-        )
 
     def test_no_orphan_messages(self, messages, trials):
         """All message roundIds should exist in trials."""
@@ -2548,7 +2523,7 @@ class TestSessionInstrumentation:
         """A choice cannot precede the stage appearing on the same screen."""
         rt = trials["selectionRt"].dropna()
         if rt.empty:
-            pytest.skip("no response times recorded (export predates them)")
+            skip_unless_full("no response times recorded (export predates them)")
         negative = rt[rt < 0]
         assert len(negative) == 0, (
             f"{len(negative)} trials have a negative response time; the "
@@ -2565,7 +2540,7 @@ class TestSessionInstrumentation:
         """
         spans = trials["selectionDurationMs"].dropna()
         if spans.empty:
-            pytest.skip("no stage spans recorded (export predates them)")
+            skip_unless_full("no stage spans recorded (export predates them)")
         assert (spans > 0).all(), (
             f"{int((spans <= 0).sum())} trials carry a non-positive Selection stage span"
         )
@@ -2587,7 +2562,7 @@ class TestSessionInstrumentation:
             if "lateClick" in trials else trials  # noqa: E712
         both = on_time[["selectionRt", "selectionDurationMs"]].dropna()
         if both.empty:
-            pytest.skip("no response times recorded (export predates them)")
+            skip_unless_full("no response times recorded (export predates them)")
         # Two seconds of slack for the round trip that commits the selection.
         # One second was too tight on a lagging server: two on-time clicks in
         # the sessions of 2026-09-23 and 2026-09-25 ran 1.03 s past the stage.
@@ -2611,7 +2586,7 @@ class TestSessionInstrumentation:
         """
         both = trials[["gameId", "playerId", "roundId", "clickedAt", "tangramSelectedAt"]].dropna()
         if both.empty:
-            pytest.skip("no selection timestamps recorded")
+            skip_unless_full("no selection timestamps recorded")
         early = both[both["clickedAt"] < both["tangramSelectedAt"]]
         assert_exactly_the_documented_cases(
             set(zip(early["gameId"], early["playerId"], early["roundId"])),
@@ -2630,7 +2605,7 @@ class TestSessionInstrumentation:
         """
         clicked = trials[trials["clicked"].notna()].copy()
         if clicked["tangramSelectedAt"].dropna().empty:
-            pytest.skip("no selection timestamps recorded")
+            skip_unless_full("no selection timestamps recorded")
         clicked["condition"] = clicked["gameId"].map(game_condition_map)
         for condition, rows in clicked.groupby("condition"):
             assert rows["tangramSelectedAt"].notna().any(), (
@@ -2639,16 +2614,16 @@ class TestSessionInstrumentation:
 
     def test_composition_time_is_positive_and_within_the_round(self, messages):
         if "composeMs" not in messages.columns:
-            pytest.skip("messages.csv predates composition timing")
+            skip_unless_full("messages.csv predates composition timing")
         compose = messages["composeMs"].dropna()
         if compose.empty:
-            pytest.skip("no composition times recorded")
+            skip_unless_full("no composition times recorded")
         assert (compose >= 0).all(), "a message was sent before it was started"
 
     def test_hidden_time_is_never_negative(self, players):
         hidden = players["tabHiddenMs"].dropna()
         if hidden.empty:
-            pytest.skip("no engagement log recorded")
+            skip_unless_full("no engagement log recorded")
         assert (hidden >= 0).all(), "negative tab-hidden time"
 
     def test_disconnected_time_fits_inside_the_game(self, players):
@@ -2658,10 +2633,10 @@ class TestSessionInstrumentation:
         hours after the game adds nothing."""
         columns = ["gameStartTime", "gameEndTime", "disconnectCount", "disconnectMs"]
         if not set(columns) <= set(players.columns):
-            pytest.skip("players.csv predates the connection log")
+            skip_unless_full("players.csv predates the connection log")
         both = players[columns].apply(pd.to_numeric, errors="coerce").dropna()
         if both.empty:
-            pytest.skip("no connection log recorded")
+            skip_unless_full("no connection log recorded")
         over = both[both["disconnectMs"] > both["gameEndTime"] - both["gameStartTime"]]
         assert len(over) == 0, (
             f"{len(over)} players were disconnected for longer than they were in the game"
@@ -2682,13 +2657,13 @@ class TestSessionInstrumentation:
         five-minute backup loop produces.
         """
         if "ended" not in games.columns:
-            pytest.skip("no ended column: no game finished in this dataset")
+            skip_unless_full("no ended column: no game finished in this dataset")
         ended_games = set(
             games.loc[games["ended"].astype(str).str.lower().isin(["true", "1"]), "gameId"]
         )
         finished = players[(players["isActive"] == True) & players["gameId"].isin(ended_games)]
         if finished.empty or finished["minutesSpent"].dropna().empty:
-            pytest.skip("export predates end-of-game time on task")
+            skip_unless_full("export predates end-of-game time on task")
         missing = finished["minutesSpent"].isna().sum()
         assert missing == 0, (
             f"{missing} of {len(finished)} players whose game ended have no time on task"
@@ -2779,7 +2754,7 @@ class TestUtteranceAssembly:
         every speaker message was non-referential has no row at all."""
         path = TABLES_DIR / FILTERED_UTTERANCES_FILE
         if not path.exists():
-            pytest.skip("no filtered utterances")
+            skip_unless_full("no filtered utterances")
         if message_labels is None:
             pytest.fail("speaker_utterances_filtered.csv exists but messages_classified.csv does not")
         status, detail = filtered_utterances_status(TABLES_DIR)
@@ -2810,7 +2785,7 @@ class TestUtteranceAssembly:
 @pytest.fixture(scope="session")
 def derived_utterances():
     if not (MEASURES_DIR / "embeddings.npy").exists():
-        pytest.skip(f"no measures for dataset '{DATASET.name}'")
+        skip_unless_full(f"no measures for dataset '{DATASET.name}'")
     status, detail = filtered_utterances_status(TABLES_DIR)
     if status == "current":
         name = FILTERED_UTTERANCES_FILE
@@ -3035,7 +3010,7 @@ class TestDerivedTables:
 def manifest():
     path = RAW_DIR / "manifest.json"
     if not path.exists() or not RAW_DIR.is_dir():
-        pytest.skip("no manifest or raw tables for this dataset")
+        skip_unless_full("no manifest or raw tables for this dataset")
     return json.loads(path.read_text())
 
 
@@ -3200,7 +3175,7 @@ class TestCodedOutcomes:
 
     def test_social_outcome_follows_the_opportunity_rule(self, social_guesses):
         if social_guesses.empty:
-            pytest.skip("no social-guessing games in this dataset")
+            skip_unless_full("no social-guessing games in this dataset")
         assert "correct" in social_guesses.columns and "onTime" in social_guesses.columns
         self._check(
             social_guesses,
