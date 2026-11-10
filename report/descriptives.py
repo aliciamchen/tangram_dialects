@@ -550,7 +550,7 @@ def exit_survey_responses(players: pd.DataFrame, games: pd.DataFrame) -> pd.Data
     answered = df[survey_cols].notna() & (df[survey_cols].astype(str) != "")
     df = df[answered.any(axis=1)].copy()
     df = df.rename(columns={c: c[len("exitSurvey_"):] for c in survey_cols})
-    df["respondent"] = np.where(_true(df["isActive"]), "completed", "removed")
+    df["respondent"] = np.where(_true(df["removed"]), "removed", "completed")
     for item in NUMERIC_ITEMS:
         if item in df.columns:
             df[item] = pd.to_numeric(df[item], errors="coerce")

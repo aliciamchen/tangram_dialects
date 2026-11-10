@@ -11,7 +11,7 @@ from report.figures import figure_names, run_figures
 def main():
     parser = argparse.ArgumentParser(description="Draw the article's figures for one dataset into results/plots/")
     add_dataset_argument(parser)
-    parser.add_argument("names", nargs="*", help=f"figure modules to draw (default: all of {', '.join(figure_names()) or 'none yet'})")
+    parser.add_argument("names", nargs="*", help=f"figure modules to draw (default: all of {', '.join(figure_names())})")
     args = parser.parse_args()
     dirs = dataset_dirs(args.dataset)
     if not dirs.model_inputs.is_dir():

@@ -2,14 +2,15 @@
 The article's figures, one module per figure.
 
 Each figure is a module in this package named for what it shows
-(group_specificity_by_window.py, not figure_two.py, because figure numbers
+(group_specificity.py, not figure_two.py, because figure numbers
 change while the article is written and the manuscript's \\includegraphics
 maps the number to the name). A module defines two functions:
 
     def data(dirs) -> pd.DataFrame
-        The table the figure plots, read from the model inputs in
-        data/<dataset>/model_inputs/ and the estimates in
-        results/estimates/. Nothing is aggregated or re-indexed
+        The table the figure plots, read from the dataset's tables, measures
+        and model inputs in data/<dataset>/ and the estimates in
+        results/estimates/ through the readers in _common.py (the stimulus
+        glyphs come from the client's SVGs). Nothing is aggregated or re-indexed
         here beyond what the figure needs to draw; an aggregate that a
         model also uses belongs in preprocessing, and a bootstrap interval
         over games comes from report.bootstrap. A module whose panels the
@@ -31,7 +32,7 @@ assembles into the article's figures in Illustrator; `make sync` copies
 the exports in figures/paper_files/, not these, into the manuscript's
 project.
 
-Tests: report/test_figures.py
+Tests: report/test_figures.py, report/test_figure_common.py
 """
 
 from __future__ import annotations
@@ -76,7 +77,7 @@ def run_figure(module, dirs) -> Path | list[Path]:
 
     Returns the PDF written, or the list of PDFs when the module's plot()
     returns a dict of panels. A module that sets FOLDER writes into that
-    subfolder of the plots directory (the confirmatory tests).
+    subfolder of the plots directory (the confirmatory tests, the intact games).
     """
     name = module.__name__.rsplit(".", 1)[-1]
     df = module.data(dirs)
@@ -104,5 +105,5 @@ def run_figures(dirs, names: list[str] | None = None) -> list[Path]:
             print(f"Wrote {pdf}")
             written.append(pdf)
     if not written:
-        print("No figure modules in report/figures/ yet; nothing written.")
+        print("No figure modules selected; nothing written.")
     return written

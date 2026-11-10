@@ -291,5 +291,5 @@ def test_session_minutes_macros_take_real_games_only():
     out = session_minutes_macros(players, GAMES)
     assert out["overviewMinutesN"] == "9", "the test game g0 is left out"
     assert out["overviewMinutesMedian"] == "40"
-    assert out["overviewMinutesLowerDecile"] < out["overviewMinutesMedian"] < out["overviewMinutesUpperDecile"]
+    assert float(out["overviewMinutesLowerDecile"]) < float(out["overviewMinutesMedian"]) < float(out["overviewMinutesUpperDecile"])
     assert session_minutes_macros(players.drop(columns=["minutesSpent"]), GAMES) == {}

@@ -27,6 +27,9 @@ import numpy as np
 import pandas as pd
 
 from report.figures._common import (
+    GUESS_CHANCE,
+    SOCIAL_CONDITIONS,
+    SPEAKERS,
     condition_summary,
     draw_column,
     is_true,
@@ -36,10 +39,7 @@ from report.figures._common import (
 )
 from report.plot_style import COLUMNS_PANEL_AXES, CONDITION_COLORS, CONDITION_LABELS, INK, RESPONDENT_POINT, SMALL_SIZE
 
-SOCIAL_CONDITIONS = ["social_mixed", "social_first"]
-SPEAKERS = ["in_group", "out_group"]
 SPEAKER_LABELS = {"in_group": "In-\ngroup", "out_group": "Out-\ngroup"}  # the tick labels, two lines so that a pair's columns can sit close
-CHANCE = 0.5  # a listener answering at random says "same group" on half the trials
 OFFSET = 0.22  # a pair's columns, either side of the condition's position
 JITTER = (0.09, 0.0)  # of a column's width; the rates are not jittered up and down
 SEED = 20261108
@@ -78,7 +78,7 @@ def plot(df: pd.DataFrame):
             ticks.append((x, SPEAKER_LABELS[speaker]))
         ax.text(i, NAME_HEIGHT, CONDITION_LABELS[condition], transform=ax.get_xaxis_transform(), fontsize=SMALL_SIZE, color=INK,
                 ha="center", va="bottom", clip_on=False)
-    reference_line(ax, CHANCE, "chance")
+    reference_line(ax, GUESS_CHANCE, "chance")
     ax.set_xticks([x for x, _ in ticks])
     ax.set_xticklabels([label for _, label in ticks])
     ax.set_xlim(-0.6, len(SOCIAL_CONDITIONS) - 0.4)

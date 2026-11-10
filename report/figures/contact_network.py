@@ -52,7 +52,7 @@ MARGINS = dict(left=0.12, right=0.12, top=0.12, bottom=0.12)
 
 def data(dirs) -> pd.DataFrame:
     players = read_table(dirs, "players.csv")
-    players = players[(players["gameId"] == EXAMPLE_GAME) & is_true(players["isActive"])]
+    players = players[(players["gameId"] == EXAMPLE_GAME) & ~is_true(players["removed"])]
     players = players.sort_values(["originalGroup", "playerIndex"]).reset_index(drop=True)
     if len(players) != 9:
         raise ValueError("The contact network needs the example game's nine players.")

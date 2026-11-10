@@ -36,6 +36,7 @@ from __future__ import annotations
 import pandas as pd
 
 from report.figures._common import (
+    LATE_BLOCKS,
     content_words,
     convention_vocabulary,
     panel_figure,
@@ -54,7 +55,6 @@ from report.plot_style import (
     STACK_DIVIDER,
 )
 
-LATE_BLOCKS = (10, 12)  # the final three blocks of Phase 2, the window the fates are read over
 FATES = ["shared", "kept", "taken over", "gone"]  # bottom to top
 GLOSSES = {
     "shared": "own group and another group use it",

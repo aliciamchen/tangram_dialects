@@ -86,7 +86,6 @@ interval.
 
 from __future__ import annotations
 
-import json
 import re
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
@@ -105,6 +104,7 @@ from report.bootstrap import bootstrap_mean
 from report.descriptives import utterances_file
 from report.inferential import read_estimates
 from report.plot_style import (
+    BETWEEN_LINESTYLE,
     CI_ALPHA,
     CONDITION_COLORS,
     CONDITION_LABELS,
@@ -138,6 +138,14 @@ from report.plot_style import (
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# Facts of the design and of the coding that more than one figure reads
+SOCIAL_CONDITIONS = ["social_mixed", "social_first"]  # the conditions whose listeners also judge the speaker's group
+SPEAKERS = ["in_group", "out_group"]  # a Phase 2 speaker from the listener's original group, or from another
+SPEAKER_LINESTYLES = {"in_group": "-", "out_group": BETWEEN_LINESTYLE}
+GUESS_CHANCE = 0.5  # a listener answering at random says "same group" on half the trials
+LATE_BLOCKS = (10, 12)  # the final three blocks of Phase 2
+GAME_COLUMN_SEED = 20261101  # the jitter of a column of game points, seeded so that the PDF reproduces
 
 
 # ── Reading ──────────────────────────────────────────────────

@@ -23,15 +23,13 @@ the refer_mixed game in which one group gives up its convention for another
 group's word (ring pop) rather than listing both, found by searching every
 refer_mixed game for late descriptions nearer another group's Phase 1
 convention than their own and reading the candidates, with the social_mixed
-game matched to it the same way (distance 0.052). The search and the matching
-are in reviews/atlas-build/embedding-maps/. Each pair also names a
+game matched to it the same way (distance 0.052). Each pair also names a
 refer_separated game, drawn only by the word-source examples: of the
 refer_separated games on the pair's tangram set with all nine players to the
 end, the one whose Phase 1 within- and between-group similarity curves are on
 average closest to the two games' (root-mean-square distance over the eleven
 block means of block_similarity_means.csv, 0.030 for the first pair and 0.041
-for the second, the runners-up at 0.052 for both; the ranking is in
-reviews/atlas-build/word-sources/match_separated.py).
+for the second, the runners-up at 0.052 for both).
 """
 
 from __future__ import annotations

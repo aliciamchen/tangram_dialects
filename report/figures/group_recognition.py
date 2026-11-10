@@ -28,6 +28,10 @@ import numpy as np
 import pandas as pd
 
 from report.figures._common import (
+    GUESS_CHANCE,
+    SOCIAL_CONDITIONS,
+    SPEAKER_LINESTYLES,
+    SPEAKERS,
     SPECIFICITY_LIMITS,
     condition_summary,
     draw_scatter,
@@ -43,12 +47,8 @@ from report.figures._common import (
     specificity_endpoints,
     trajectory_table,
 )
-from report.plot_style import BETWEEN_LINESTYLE, PHASE2_RANGE, PHASE2_TICKS, SQUARE_PANEL_AXES
+from report.plot_style import PHASE2_RANGE, PHASE2_TICKS, SQUARE_PANEL_AXES
 
-SOCIAL_CONDITIONS = ["social_mixed", "social_first"]
-SPEAKERS = ["in_group", "out_group"]
-LINESTYLES = {"in_group": "-", "out_group": BETWEEN_LINESTYLE}
-CHANCE = 0.5  # a listener answering at random says "same group" on half the trials
 MARGINS = dict(left=0.62, right=0.12, top=0.12, bottom=0.42)  # the y label, nothing, nothing, the x axis
 
 
@@ -85,10 +85,10 @@ def _by_block(table: pd.DataFrame):
     """Hits (solid) and false alarms (dashed), the condition in the color."""
     fig, ax = panel_figure(axes=SQUARE_PANEL_AXES, **MARGINS)
     for speaker in SPEAKERS:
-        draw_trajectory(ax, table[table["speaker"] == speaker], SOCIAL_CONDITIONS, blocks=PHASE2_RANGE, linestyle=LINESTYLES[speaker])
+        draw_trajectory(ax, table[table["speaker"] == speaker], SOCIAL_CONDITIONS, blocks=PHASE2_RANGE, linestyle=SPEAKER_LINESTYLES[speaker])
     ax.set_xticks(PHASE2_TICKS)
     ax.set_ylim(0, 1)
-    reference_line(ax, CHANCE, "chance")
+    reference_line(ax, GUESS_CHANCE, "chance")
     ax.set_ylabel("Share judged in-group")
     return fig
 
@@ -96,7 +96,7 @@ def _by_block(table: pd.DataFrame):
 def _vs_specificity(table: pd.DataFrame):
     fig, ax = panel_figure(axes=SQUARE_PANEL_AXES, **MARGINS)
     draw_scatter(ax, table, SOCIAL_CONDITIONS)
-    ax.set_xlim(CHANCE, 1.0)
+    ax.set_xlim(GUESS_CHANCE, 1.0)
     ax.set_xticks([0.5, 0.75, 1.0])
     ax.set_ylim(*SPECIFICITY_LIMITS)
     ax.set_xlabel("Group recognition accuracy")

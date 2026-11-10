@@ -38,8 +38,25 @@ import numpy as np
 import pandas as pd
 
 from report.figures import confirmatory_h1_h2, confirmatory_h3, confirmatory_h4
-from report.figures._common import draw_contrasts, keep_games, numeric, panel_figure, read_model_input, restricted_games, significance_stars
-from report.plot_style import CONDITION_COLORS, GAME_POINT, INK, REFERENCE_LINE, SMALL_SIZE
+from report.figures._common import (
+    GAME_COLUMN_SEED,
+    draw_contrasts,
+    keep_games,
+    numeric,
+    panel_figure,
+    read_model_input,
+    restricted_games,
+    significance_stars,
+)
+from report.plot_style import (
+    CONDITION_COLORS,
+    GAME_POINT,
+    INK,
+    REFERENCE_LINE,
+    SMALL_SIZE,
+    SUMMARY_COLUMNS_PANEL_AXES,
+    SUMMARY_ROWS_PANEL_AXES,
+)
 
 FOLDER = "confirmatory_tests"
 FIRST, MIXED = "social_first", "social_mixed"
@@ -58,7 +75,7 @@ TESTS = {
 }
 RATE_BLOCKS = confirmatory_h3.RATE_BLOCKS
 N_BOOT = 10000
-SEED = 20261101
+SEED = GAME_COLUMN_SEED  # the bootstrap and the jitter
 COLUMN_STEP = 2.6  # the distance between the pairs of columns, in columns
 
 
@@ -116,7 +133,7 @@ def plot(df: pd.DataFrame) -> dict:
 
 
 def _differences(tests: pd.DataFrame):
-    fig, ax = panel_figure(axes=(1.6, 2.2), left=2.1, right=0.4, top=0.12, bottom=0.42)
+    fig, ax = panel_figure(axes=SUMMARY_ROWS_PANEL_AXES, left=2.1, right=0.4, top=0.12, bottom=0.42)
     draw_contrasts(ax, tests)
     for y, row in zip(np.arange(len(tests))[::-1], tests.itertuples()):
         if np.isfinite(row.p_value):  # no mark for a test not run under the restriction
@@ -130,7 +147,7 @@ def _differences(tests: pd.DataFrame):
 
 
 def _columns(games: pd.DataFrame, tests: pd.DataFrame):
-    fig, ax = panel_figure(axes=(3.9, 1.6), left=0.55, right=0.12, top=0.12, bottom=1.2)
+    fig, ax = panel_figure(axes=SUMMARY_COLUMNS_PANEL_AXES, left=0.55, right=0.12, top=0.12, bottom=1.2)
     rng = np.random.default_rng(SEED)
     for k, row in enumerate(tests.itertuples()):
         _, base, other, _ = TESTS[row.label]

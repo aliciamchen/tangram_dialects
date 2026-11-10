@@ -26,6 +26,10 @@ import pandas as pd
 
 from report.bootstrap import bootstrap_mean
 from report.figures._common import (
+    GUESS_CHANCE,
+    SOCIAL_CONDITIONS,
+    SPEAKER_LINESTYLES,
+    SPEAKERS,
     is_true,
     numeric,
     panel_figure,
@@ -36,7 +40,6 @@ from report.figures._common import (
     utterance_embeddings,
 )
 from report.plot_style import (
-    BETWEEN_LINESTYLE,
     BETWEEN_MARKER,
     INK,
     INTERVAL_LINE,
@@ -46,13 +49,9 @@ from report.plot_style import (
     SQUARE_PANEL_AXES,
 )
 
-SOCIAL_CONDITIONS = ["social_mixed", "social_first"]
-SPEAKERS = ["in_group", "out_group"]
-LINESTYLES = {"in_group": "-", "out_group": BETWEEN_LINESTYLE}
 MARKERS = {"in_group": "o", "out_group": BETWEEN_MARKER}  # both filled: a hollow mark would read as Phase 2
 BINS = np.linspace(0.1, 1.0, 10)  # nine equal widths of similarity
 MIN_OBS = 30  # judgments a bin needs to be drawn
-CHANCE = 0.5  # a listener answering at random says "same group" on half the trials
 MARGINS = dict(left=0.62, right=0.12, top=0.12, bottom=0.55)  # the y label, nothing, nothing, the two-line x label
 
 
@@ -91,11 +90,11 @@ def plot(df: pd.DataFrame):
     fig, ax = panel_figure(axes=SQUARE_PANEL_AXES, **MARGINS)
     for speaker in SPEAKERS:
         s = df[df["speaker"] == speaker].sort_values("x")
-        ax.plot(s["x"], s["value"], color=INK, linestyle=LINESTYLES[speaker], zorder=2, **MEAN_LINE)
+        ax.plot(s["x"], s["value"], color=INK, linestyle=SPEAKER_LINESTYLES[speaker], zorder=2, **MEAN_LINE)
         ax.vlines(s["x"], s["lower"], s["upper"], color=INK, zorder=3, **INTERVAL_LINE)
         marker = MARKERS[speaker]
         ax.scatter(s["x"], s["value"], color=INK, marker=marker, zorder=4, **{**PHASE_POINT, "s": PHASE_POINT["s"] * MARKER_AREA[marker]})
-    reference_line(ax, CHANCE, "chance", side="left")  # the out-group curve crosses the line at the right
+    reference_line(ax, GUESS_CHANCE, "chance", side="left")  # the out-group curve crosses the line at the right
     ax.set_xlim(BINS[0], BINS[-1])
     ax.set_xticks([0.2, 0.6, 1.0])
     ax.set_ylim(0, 1)

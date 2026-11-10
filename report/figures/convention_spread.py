@@ -64,7 +64,7 @@ def _game(utterances, players, trials, game: str, target: str, pair: int) -> lis
     """The rows of one game: the players still in it at the end, each block's variant and trio."""
     in_game = utterances[utterances["gameId"] == game]
     coded = code_convention_use(in_game[in_game["target"] == target], convention_vocabulary(in_game))
-    players = players[(players["gameId"] == game) & is_true(players["isActive"])]
+    players = players[(players["gameId"] == game) & ~is_true(players["removed"])]
     players = players.sort_values(["originalGroup", "playerIndex"]).reset_index(drop=True)
     trials = trials[(trials["gameId"] == game) & (trials["target"] == target)].copy()
     trials["gameBlock"] = numeric(trials["gameBlock"]).astype(int)

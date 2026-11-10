@@ -29,6 +29,8 @@ from __future__ import annotations
 import pandas as pd
 
 from report.figures._common import (
+    GAME_COLUMN_SEED,
+    SOCIAL_CONDITIONS,
     condition_summary,
     draw_bracket,
     draw_columns,
@@ -42,17 +44,14 @@ from report.figures._common import (
     social_guesses,
     contrast_estimates,
 )
-from report.plot_style import GAME_POINT, columns_panel_axes
+from report.plot_style import COLUMN_MEAN_HALF, CONTRAST_PANEL_AXES, GAME_JITTER, GAME_POINT, columns_panel_axes
 
 FOLDER = "confirmatory_tests"
-CONDITIONS = ["social_mixed", "social_first"]
+CONDITIONS = SOCIAL_CONDITIONS
 TESTS = {  # panel: (analysis in primary/h4.csv, label of the contrast, y label)
     "h4a": ("h4a", "Social-first > social mixed", "Group recognition\naccuracy"),
     "h4b": ("h4b", "Social mixed > social-first", "Referential accuracy"),
 }
-GAME_JITTER = (0.18, 0.0)
-SEED = 20261101
-MEAN_HALF = 0.26
 MARGINS = dict(left=0.62, right=0.12, top=0.12, bottom=0.42)
 
 
@@ -86,7 +85,7 @@ def plot(df: pd.DataFrame) -> dict:
     for panel, (_, _, ylabel) in TESTS.items():
         table = df[df["panel"] == panel]
         fig, ax = panel_figure(axes=columns_panel_axes(len(CONDITIONS)), **MARGINS)
-        draw_columns(ax, table, GAME_POINT, GAME_JITTER, SEED, MEAN_HALF, CONDITIONS, level="game")
+        draw_columns(ax, table, GAME_POINT, GAME_JITTER, GAME_COLUMN_SEED, COLUMN_MEAN_HALF, CONDITIONS, level="game")
         ax.set_ylim(0.5, 1.1)
         ax.set_yticks([0.5, 0.75, 1.0])
         p = table.loc[table["level"] == "condition", "p_value"].iloc[0]
@@ -94,7 +93,7 @@ def plot(df: pd.DataFrame) -> dict:
         ax.set_ylabel(ylabel)
         panels[panel] = fig
     contrasts = df[df["panel"] == "contrasts"].set_index("term").loc[list(TESTS)].reset_index()
-    fig, ax = panel_figure(axes=(1.4, 0.7), left=1.3, right=0.12, top=0.12, bottom=0.42)
+    fig, ax = panel_figure(axes=CONTRAST_PANEL_AXES, left=1.3, right=0.12, top=0.12, bottom=0.42)
     draw_contrasts(ax, contrasts, null=1.0, log=True)
     ax.set_xlim(0.6, 2.0)
     ax.set_xticks([0.75, 1.0, 1.5])

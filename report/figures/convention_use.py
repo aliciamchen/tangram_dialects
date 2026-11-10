@@ -31,6 +31,8 @@ from __future__ import annotations
 import pandas as pd
 
 from report.figures._common import (
+    GAME_COLUMN_SEED,
+    LATE_BLOCKS,
     USES,
     code_convention_use,
     condition_summary,
@@ -41,9 +43,11 @@ from report.figures._common import (
     speaker_utterances,
 )
 from report.plot_style import (
+    COLUMN_MEAN_HALF,
     COLUMNS_PANEL_AXES,
     CONDITION_COLORS,
     CONDITION_ORDER,
+    GAME_JITTER,
     GAME_POINT,
     STACK_ALPHAS,
     STACK_DIVIDER,
@@ -51,10 +55,6 @@ from report.plot_style import (
 )
 
 BORROWED = ["both", "other"]  # the categories that use another group's words
-LATE_BLOCKS = (10, 12)  # the final three blocks of Phase 2, the per-game panel's window
-GAME_JITTER = (0.18, 0.0)  # of a column's width; the shares are not jittered up and down
-SEED = 20261101
-MEAN_HALF = 0.26  # half the width of the mean's line and box, of a column's width
 MARGINS = dict(left=0.62, right=0.12, top=0.12, bottom=0.42)  # the y label, nothing, nothing, the block axis
 
 
@@ -99,7 +99,7 @@ def plot(df: pd.DataFrame) -> dict:
         ax.set_ylabel("Share of\ndescriptions")
         panels[condition] = fig
     fig, ax = panel_figure(axes=COLUMNS_PANEL_AXES, **MARGINS)
-    draw_columns(ax, df[df["panel"] == "borrowed"], GAME_POINT, GAME_JITTER, SEED, MEAN_HALF, level="game")
+    draw_columns(ax, df[df["panel"] == "borrowed"], GAME_POINT, GAME_JITTER, GAME_COLUMN_SEED, COLUMN_MEAN_HALF, level="game")
     ax.set_ylim(0, 0.5)
     ax.set_yticks([0, 0.2, 0.4])
     ax.set_ylabel("Share using another\ngroup's words")

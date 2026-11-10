@@ -44,6 +44,7 @@ import pandas as pd
 
 from report.bootstrap import bootstrap_mean
 from report.figures._common import (
+    SOCIAL_CONDITIONS,
     dodge,
     draw_trajectory,
     is_true,
@@ -68,7 +69,6 @@ from report.plot_style import (
     SQUARE_PANEL_AXES,
 )
 
-SOCIAL_CONDITIONS = ["social_mixed", "social_first"]
 ANCHORS = ["own", "other"]
 ANCHOR_LINESTYLES = {"own": "-", "other": BETWEEN_LINESTYLE}
 OUTCOMES = ["in_group", "recognized", "out_group"]

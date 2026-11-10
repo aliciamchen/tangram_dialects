@@ -24,6 +24,8 @@ import numpy as np
 import pandas as pd
 
 from report.figures._common import (
+    SPEAKER_LINESTYLES,
+    SPEAKERS,
     draw_trajectory,
     is_true,
     keep_games,
@@ -37,7 +39,6 @@ from report.figures._common import (
     trajectory_table,
 )
 from report.plot_style import (
-    BETWEEN_LINESTYLE,
     BLOCK_PANEL_AXES,
     CONDITION_ORDER,
     SPARSE_BLOCK_TICKS,
@@ -51,8 +52,6 @@ PANELS = {
 # Similarity on the same scale as the group-specificity panel beside it
 LIMITS = {"accuracy": (0, 1), "length": (0, None), "adjacent_similarity": (0.1, 1.0)}
 MARGINS = dict(left=0.62, right=0.12, top=0.12, bottom=0.42)  # the y label, nothing, nothing, the block axis
-SPEAKERS = ["in_group", "out_group"]
-LINESTYLES = {"in_group": "-", "out_group": BETWEEN_LINESTYLE}
 CHANCE = 1 / 16  # one target among the sixteen tangrams displayed
 
 
@@ -96,6 +95,6 @@ def plot(df: pd.DataFrame) -> dict:
 def _accuracy(ax, table: pd.DataFrame) -> None:
     """Accuracy with in-group (solid) and out-group (dashed) speakers, the condition in the color."""
     for speaker in SPEAKERS:
-        draw_trajectory(ax, table[table["speaker"] == speaker], CONDITION_ORDER, linestyle=LINESTYLES[speaker])
+        draw_trajectory(ax, table[table["speaker"] == speaker], CONDITION_ORDER, linestyle=SPEAKER_LINESTYLES[speaker])
     ax.set_ylim(*LIMITS["accuracy"])
     reference_line(ax, CHANCE, "chance")

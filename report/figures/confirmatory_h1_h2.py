@@ -44,6 +44,8 @@ import numpy as np
 import pandas as pd
 
 from report.figures._common import (
+    GAME_COLUMN_SEED,
+    SOCIAL_CONDITIONS,
     condition_summary,
     draw_bracket,
     draw_columns,
@@ -59,18 +61,23 @@ from report.figures._common import (
 from report.plot_style import (
     CONDITION_COLORS,
     CONDITION_LABELS,
+    COLUMN_MEAN_HALF,
+    CONTRAST_PANEL_AXES,
+    GAME_JITTER,
     GAME_LINE,
     GAME_POINT,
     MEAN_LINE,
+    PAIRED_COLUMN_WIDTH,
     PHASE_POINT,
     SMALL_SIZE,
+    SQUARE_PANEL_AXES,
     columns_panel_axes,
 )
 
 FOLDER = "confirmatory_tests"
 CONDITIONS = ["refer_separated", "refer_mixed", "social_mixed"]
 SHOWN = CONDITIONS + ["social_first"]  # the conditions drawn in the adjusted and before_after panels
-SOCIAL = ["social_mixed", "social_first"]  # the games of the exploratory test
+SOCIAL = SOCIAL_CONDITIONS  # the games of the exploratory test
 CONTRASTS = {  # term in primary/h1_h2.csv: (label, the two columns it compares)
     "H1_sep_vs_mixed": ("Separated > mixed", ("refer_separated", "refer_mixed")),
     "H2_social_vs_mixed": ("Social mixed > refer mixed", ("social_mixed", "refer_mixed")),
@@ -78,9 +85,6 @@ CONTRASTS = {  # term in primary/h1_h2.csv: (label, the two columns it compares)
 EXPLORATORY = {  # term in exploratory/social_phase2_specificity.csv: the two columns it compares
     "socialfirst_vs_socialmixed": ("social_mixed", "social_first"),
 }
-GAME_JITTER = (0.18, 0.0)
-SEED = 20261101
-MEAN_HALF = 0.26
 MARGINS = dict(left=0.62, right=0.12, top=0.12, bottom=0.42)
 
 
@@ -129,7 +133,7 @@ def plot(df: pd.DataFrame) -> dict:
 
 def _adjusted(table: pd.DataFrame, contrasts: pd.DataFrame, exploratory: pd.DataFrame):
     fig, ax = panel_figure(axes=columns_panel_axes(len(SHOWN)), **MARGINS)
-    draw_columns(ax, table, GAME_POINT, GAME_JITTER, SEED, MEAN_HALF, SHOWN, level="game")
+    draw_columns(ax, table, GAME_POINT, GAME_JITTER, GAME_COLUMN_SEED, COLUMN_MEAN_HALF, SHOWN, level="game")
     top = table["value"].max()
     ax.set_ylim(-0.05, top + 0.3)
     ax.set_yticks([0, 0.4, 0.8])
@@ -144,7 +148,7 @@ def _adjusted(table: pd.DataFrame, contrasts: pd.DataFrame, exploratory: pd.Data
 
 
 def _contrasts(contrasts: pd.DataFrame):
-    fig, ax = panel_figure(axes=(1.4, 0.7), left=1.3, right=0.12, top=0.12, bottom=0.42)
+    fig, ax = panel_figure(axes=CONTRAST_PANEL_AXES, left=1.3, right=0.12, top=0.12, bottom=0.42)
     draw_contrasts(ax, contrasts)
     ax.set_xlim(-0.05, 0.45)
     ax.set_xticks([0, 0.2, 0.4])
@@ -153,7 +157,7 @@ def _contrasts(contrasts: pd.DataFrame):
 
 
 def _before_after(games: pd.DataFrame):
-    fig, ax = panel_figure(axes=(0.45 * len(SHOWN), 1.2), **MARGINS)
+    fig, ax = panel_figure(axes=(PAIRED_COLUMN_WIDTH * len(SHOWN), SQUARE_PANEL_AXES[1]), **MARGINS)
     for i, c in enumerate(SHOWN):
         part = games[games["condition"] == c]
         x = np.array([2 * i, 2 * i + 1])

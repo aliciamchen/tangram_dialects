@@ -134,6 +134,11 @@ RESPONDENT_POINT = dict(s=7, alpha=0.11, linewidths=0)  # one respondent among h
 # bootstrap interval the outline of a box around the line
 RESPONDENT_MEAN = dict(color=INK, linewidth=1.0, solid_capstyle="butt")
 RESPONDENT_INTERVAL = dict(facecolor="none", edgecolor=INK, linewidth=0.6)
+# A column of game points under such a mean: the jitter across, a fraction of a
+# column's width, and up and down (none), and half the width of the mean's line
+# and box, of a column's width
+GAME_JITTER = (0.18, 0.0)
+COLUMN_MEAN_HALF = 0.26
 # The range of a permutation null behind an observed value, light so that the points stand out
 NULL_BAND = dict(color="#A6A6A6", alpha=0.25, linewidth=1.5)
 # A network of a game's players: a node per player, its rim white where the
@@ -187,8 +192,7 @@ ABSENT = "#DCDCDC"
 
 # ── Sizes, in inches ─────────────────────────────────────────
 # Every article panel is written as its own PDF for assembly by hand, so the
-# sizes here are plotting areas, not figure sizes; the whole-figure sizes the
-# exploration notebooks use are in explore/_shared/style.py.
+# sizes here are plotting areas, not figure sizes.
 
 # The plotting area of a panel written as its own PDF for assembly by hand, so
 # that panels line up when set side by side; the margins hold what each carries
@@ -220,6 +224,18 @@ COLUMN_WIDTH = COLUMNS_PANEL_AXES[0] / 4  # one condition's column, for a panel 
 def columns_panel_axes(n: int) -> tuple[float, float]:
     """The plotting area of a panel with a column for each of `n` conditions (the confirmatory tests)."""
     return (COLUMN_WIDTH * n, COLUMNS_PANEL_AXES[1])
+
+
+# The plotting area of a panel of a test's planned contrasts with their model
+# intervals, a row per contrast
+CONTRAST_PANEL_AXES = (1.4, 0.7)
+# The plotting areas of the two panels that set every test on one standardized
+# scale: a row per test, and a pair of columns of games per test
+SUMMARY_ROWS_PANEL_AXES = (1.6, 2.2)
+SUMMARY_COLUMNS_PANEL_AXES = (3.9, 1.6)
+# A condition's pair of before and after columns in the panel that joins each
+# game's two phases, as tall as SQUARE_PANEL_AXES
+PAIRED_COLUMN_WIDTH = 0.45
 
 
 # The plotting area of a panel with one row per game (the permutation null),

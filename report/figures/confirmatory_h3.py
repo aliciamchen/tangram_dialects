@@ -42,6 +42,8 @@ import numpy as np
 import pandas as pd
 
 from report.figures._common import (
+    GAME_COLUMN_SEED,
+    SOCIAL_CONDITIONS,
     condition_summary,
     draw_bracket,
     draw_columns,
@@ -56,15 +58,20 @@ from report.figures._common import (
     contrast_estimates,
     trajectory_table,
 )
-from report.plot_style import GAME_POINT, INK, SMALL_SIZE, SQUARE_PANEL_AXES, columns_panel_axes
+from report.plot_style import (
+    COLUMN_MEAN_HALF,
+    GAME_JITTER,
+    GAME_POINT,
+    INK,
+    SMALL_SIZE,
+    SQUARE_PANEL_AXES,
+    columns_panel_axes,
+)
 
 FOLDER = "confirmatory_tests"
-CONDITIONS = ["social_mixed", "social_first"]
+CONDITIONS = SOCIAL_CONDITIONS
 RATE_BLOCKS = range(2, 7)  # Phase 1 blocks 2 to 6, where within-group pairs exist
 EARLY_BLOCK = 3
-GAME_JITTER = (0.18, 0.0)
-SEED = 20261101
-MEAN_HALF = 0.26
 MARGINS = dict(left=0.62, right=0.12, top=0.12, bottom=0.42)
 # panel: (estimates table, analysis, measure or None, y label, y limits, y ticks)
 PANELS = {
@@ -131,7 +138,7 @@ def plot(df: pd.DataFrame) -> dict:
     for panel, (_, _, _, ylabel, ylim, yticks) in PANELS.items():
         table = df[df["panel"] == panel]
         fig, ax = panel_figure(axes=columns_panel_axes(len(CONDITIONS)), **MARGINS)
-        draw_columns(ax, table, GAME_POINT, GAME_JITTER, SEED, MEAN_HALF, CONDITIONS, level="game")
+        draw_columns(ax, table, GAME_POINT, GAME_JITTER, GAME_COLUMN_SEED, COLUMN_MEAN_HALF, CONDITIONS, level="game")
         span = ylim[1] - ylim[0]
         ax.set_ylim(ylim[0], ylim[1] + 0.2 * span)
         ax.set_yticks(yticks)

@@ -20,6 +20,8 @@ import numpy as np
 import pandas as pd
 
 from report.figures._common import (
+    SPEAKER_LINESTYLES,
+    SPEAKERS,
     draw_trajectory,
     is_true,
     listener_trials,
@@ -27,10 +29,8 @@ from report.figures._common import (
     panel_figure,
     trajectory_table,
 )
-from report.plot_style import BETWEEN_LINESTYLE, BLOCK_PANEL_AXES, CONDITION_ORDER, SPARSE_BLOCK_TICKS
+from report.plot_style import BLOCK_PANEL_AXES, CONDITION_ORDER, SPARSE_BLOCK_TICKS
 
-SPEAKERS = ["in_group", "out_group"]
-LINESTYLES = {"in_group": "-", "out_group": BETWEEN_LINESTYLE}
 MAX_SECONDS = 60  # a longer time is a clock artifact, not a choice
 MARGINS = dict(left=0.62, right=0.12, top=0.12, bottom=0.42)  # the y label, nothing, nothing, the block axis
 
@@ -50,7 +50,7 @@ def plot(df: pd.DataFrame):
     """In-group (solid) and out-group (dashed) speakers, the condition in the color."""
     fig, ax = panel_figure(axes=BLOCK_PANEL_AXES, **MARGINS)
     for speaker in SPEAKERS:
-        draw_trajectory(ax, df[df["speaker"] == speaker], CONDITION_ORDER, linestyle=LINESTYLES[speaker])
+        draw_trajectory(ax, df[df["speaker"] == speaker], CONDITION_ORDER, linestyle=SPEAKER_LINESTYLES[speaker])
     ax.set_xticks(SPARSE_BLOCK_TICKS)
     ax.set_ylim(0, None)
     ax.set_ylabel("Listener response time\nfor referent (s)")
