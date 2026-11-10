@@ -25,7 +25,7 @@ cd experiment && npm run test:unit    # server unit tests; Playwright only throu
 - A worktree or a cloud clone has none of the gitignored inputs (`.env` and `empirica.toml` are copied in through `.worktreeinclude`; the raw exports and `data/full/` are not), so data processing, renders and manuscript work stay in the main checkout.
 - The message filter spends Vertex AI credit: state the number of calls and get a yes first.
 - The experiment code is the record of what ran. Change it for tests, documentation or a future deployment only, and never edit a test to make it pass or without saying so.
-- Hooks enforce the sharp edges (`.claude/settings.json`, mirrored in `.codex/hooks.json`): recursive deletes are blocked, the pre-commit check scans for identifiers and runs the test suites, and pushes to main, force pushes and pull-request merges are denied 
+- Hooks enforce the sharp edges (`.claude/settings.json`, mirrored in `.codex/hooks.json`): recursive deletes are blocked, the pre-commit check scans for identifiers and runs the test suites, and pushes to main, force pushes and pull-request merges are denied.
 
 ## Working with the author
 

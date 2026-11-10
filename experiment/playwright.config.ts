@@ -8,7 +8,7 @@ assertNoOtherRun();
 const isTestMode = process.env.TEST_MODE !== 'false';
 
 /**
- * 4 test groups with server resets between each group.
+ * 5 test groups with server resets between each group.
  *
  * Execution order: setup-1 → group-1 → setup-2 → group-2 → setup-3 → group-3 → setup-4 → group-4 → setup-5 → group-holistic
  *
@@ -17,8 +17,8 @@ const isTestMode = process.env.TEST_MODE !== 'false';
  * prevents batch contamination between groups.
  *
  * By default, tests run in TEST_MODE: 3+2 blocks with PRODUCTION timers (45s/25s
- * selection, 3 idle rounds). TEST_MODE=false plays the full 6+6 blocks:
- *   TEST_MODE=false npx playwright test
+ * selection, 3 idle rounds). Only the holistic group plays the full 6+6 blocks:
+ *   npm run test:holistic
  *
  * | Group   | Categories                                        |
  * |---------|---------------------------------------------------|

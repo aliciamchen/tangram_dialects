@@ -23,7 +23,7 @@ npm run test:unit         # server unit tests (vitest), no browser
 npm test                  # the whole Playwright suite in test mode (3+2 blocks at production timers)
 npm run test:group1       # one group: test:group1 to test:group4, test:group4:fast, test:holistic
 npm run test:smoke        # the specs tagged @smoke
-TEST_MODE=false npm test  # full-length games (6+6 blocks)
+npm run test:holistic     # full-length games (6+6 blocks)
 npm run test:report       # the HTML report
 ```
 

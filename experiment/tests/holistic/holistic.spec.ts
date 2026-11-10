@@ -14,7 +14,7 @@
  * - 5 players reshuffled into 2 groups, complete Phase 2 with social guessing
  * - Exit surveys for 5 survivors
  *
- * Run: npx playwright test --project=setup-5 --project=group-holistic --reporter=list
+ * Run: npm run test:holistic
  */
 import '../helpers/set-production-mode';
 import { test, expect, BrowserContext, Page } from '@playwright/test';

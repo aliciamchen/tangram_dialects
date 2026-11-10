@@ -81,7 +81,7 @@ One row per player.
 | `bonus` | Monetary bonus (score times the bonus rate) |
 | `isActive` | Whether the player stayed in the game to the end |
 | `idleRounds` | Number of rounds the player was idle |
-| `exitReason` | Why a player left early: `player timeout` (idle for three rounds), `low accuracy` (failed the Phase 1 accuracy check), `group disbanded`, `insufficient groups after accuracy check` or `quiz failed`; empty for players who finished |
+| `exitReason` | Why a player left early: `player timeout` (idle for three rounds), `low accuracy` (failed the Phase 1 accuracy check), `group disbanded`, `insufficient groups`, `insufficient groups after accuracy check` or `game terminated`; empty for players who finished |
 | `removed` | Whether the player was taken out of the game before its end (`isActive` is false) |
 | `removalReason` | The category of a removed player's `exitReason`: `idle`, `low accuracy`, `group disbanded`, `insufficient groups`, `game terminated`, or `other` for a reason outside these; empty for players who finished |
 | `removedNoFault` | Whether the removal was through no fault of the participant: their group fell apart, too few groups remained for the game to go on, or the batch was stopped. These players are compensated for their time and reported apart from players removed for inactivity or their group's low accuracy |
@@ -204,7 +204,7 @@ One row per eligible listener per Phase 2 trial in the two social conditions: ea
 | `socialGuess` | `same_group` or `different_group`; empty when no guess was submitted |
 | `socialGuessCorrect` | Whether the guess was correct |
 | `socialRoundScore` | Points awarded for the guess |
-| `speakerWasSameGroup` | The server's record, written when it scored the guess, of whether the speaker belonged to the listener's original group: the ground truth `socialGuessCorrect` is judged against. Empty where no guess was scored |
+| `speakerWasSameGroup` | Whether the speaker belonged to the listener's original group: the ground truth `socialGuessCorrect` is judged against. The server records it only when it scores a guess, so the pipeline derives it for every opportunity from the speaker's original group and checks it against the server's record where there is one |
 | `socialTimeout`, `lateSocialGuess` | Whether no guess was submitted, and whether the guess arrived after the Selection deadline (unscored) |
 | `hasSpeakerMessage`, `responseOpportunity` | Whether the speaker sent a message, and whether the row counts in the social-guess accuracy denominator |
 | `socialGuessSelectedAt`, `socialGuessRt` | When the listener chose the answer, on their clock, and how long after the Selection stage rendered; comparable with `selectionRt` in `trials.csv`, which shows which of the two decisions came first |

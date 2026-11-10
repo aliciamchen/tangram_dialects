@@ -19,7 +19,7 @@ Phase 1 slope on the two social conditions, so the bracket's test and the
 column's adjustment differ slightly.
 
 contrasts: the two planned contrasts with their 95% intervals from the model,
-labelled by their predicted direction.
+labeled by their predicted direction.
 
 before_after: each game's specificity at the end of Phase 1 and at the end of
 Phase 2 joined by a thin line, the condition means bold, filled for Phase 1

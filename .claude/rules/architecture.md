@@ -47,7 +47,7 @@ Compare reasons against `EXIT_REASONS`, never string literals, and read `exitRea
 2. Inactive penalty: "Removed from the game"
 3. Chat restrictions: "Only topics related to picking out the correct target picture"
 4. Listener waiting: "Listeners must wait for speaker"
-5. Phase 2 groups: "Mixed up"
-6. Tangram positions: "Different positions for each player"
+5. Picture positions: "Mixed up and in different places for different people"
+6. Why "the one on the left" fails: "Different positions for each player"
 
-`social_first` adds a seventh question about the identification reward; the exact strings are in `client/src/intro-exit/Quiz.jsx`.
+`social_first` adds a seventh question about Phase 2 (the groups are mixed and listeners identify the speaker's group); the exact strings are in `client/src/intro-exit/Quiz.jsx`.

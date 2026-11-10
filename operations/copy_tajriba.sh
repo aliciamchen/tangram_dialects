@@ -5,7 +5,7 @@
 # Runs `empirica export` on the server to produce a CSV zip, then copies it
 # to experiment/data/<timestamp>/empirica-export-<timestamp>.zip: one
 # directory per export, named by the zip's own timestamp. That is the layout
-# analysis/extract_run.py and the Makefile look for, so every backup taken
+# preprocessing/extract_run.py and the Makefile look for, so every backup taken
 # during a session is a usable export, not only the last one.
 #
 # Usage:

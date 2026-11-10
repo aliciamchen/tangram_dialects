@@ -4,7 +4,7 @@ paths:
   - "pyproject.toml"
 ---
 
-# Python Environment
+# Python environment
 
 This project uses [uv](https://docs.astral.sh/uv/) for Python dependency management, with the dependencies declared in `pyproject.toml`. The R side is restored with `renv::restore()`.
 

@@ -8,7 +8,7 @@ allowed-tools: Bash, Read, Grep, Glob
 
 Facts about the suite (groups, helpers, config values) are in `.claude/rules/testing.md`. This is the procedure.
 
-1. **Pick the narrowest run.** `npm run test:unit` (vitest on every pure server module and the tests in `shared/`, 11 files in about a second; run it from `experiment/`, never `npx vitest` from there, which finds no config and globs the Playwright specs into an alarming pile of failures) for scoring or reshuffling changes; `npm run test:groupN` for one group; `npm run test:group4:fast` for idle and viability tests (shortened timers); `npm test` for everything in test mode; `npm run test:holistic` for a full game at production timing. All from `experiment/`. Never run a bare `npx playwright test <file>` or `--project=group-N`: the groups are chained and Playwright replays every earlier group first. One file:
+1. **Pick the narrowest run.** `npm run test:unit` (vitest on every pure server module and the tests in `shared/`, 14 files in about a second; run it from `experiment/`, never `npx vitest` from there, which finds no config and globs the Playwright specs into an alarming pile of failures) for scoring or reshuffling changes; `npm run test:groupN` for one group; `npm run test:group4:fast` for idle and viability tests (shortened timers); `npm test` for everything in test mode; `npm run test:holistic` for a full game at production timing. All from `experiment/`. Never run a bare `npx playwright test <file>` or `--project=group-N`: the groups are chained and Playwright replays every earlier group first. One file:
 
    ```bash
    npx playwright test reset-server.setup tests/<category>/<file>.spec.ts \

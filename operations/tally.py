@@ -168,7 +168,7 @@ def tally_lines(counts, next_cell):
 def stopping_rule_progress(counts):
     """Games started against the cap and the per-condition share, plus intact games.
 
-    Every game in `counts` counts towards the cap, including the partial and
+    Every game in `counts` counts toward the cap, including the partial and
     incomplete ones: the cap is on games started, and a game that never
     started carries no condition (the server writes it in onGameStart), which
     read_games_table drops.
@@ -188,7 +188,7 @@ def stopping_rule_progress(counts):
 
 
 def stopping_rule_lines(counts):
-    """Progress towards the cap, per condition, and the intact games for reference."""
+    """Progress toward the cap, per condition, and the intact games for reference."""
     progress = stopping_rule_progress(counts)
 
     def by_condition(values, target):

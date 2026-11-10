@@ -817,7 +817,7 @@ def reconcile(studies: dict[str, Study], submissions: dict[str, list[dict]],
     """Bonuses paid on Prolific that no row accounts for, by person and study.
 
     A payment can be the author's deliberate one (a goodwill payment for a
-    cancelled session, or more than a row asked for) or a row's pay sent
+    canceled session, or more than a row asked for) or a row's pay sent
     through the wrong study. When it was made in a study where the person has
     no row at all and equals what a ready row still owes them in another
     study, that row is held back as a possible duplicate, since pasting it

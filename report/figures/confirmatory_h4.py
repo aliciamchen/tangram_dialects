@@ -12,7 +12,7 @@ black line and its bootstrap interval over games as an outlined box, with the
 preregistered test's significance as a bracket (significance_stars()).
 
 contrasts: the two planned contrasts as odds ratios with their 95% intervals
-from the models, on a logarithmic axis with the null at 1, labelled by their
+from the models, on a logarithmic axis with the null at 1, labeled by their
 predicted direction.
 
 Under a restriction (`restriction`, a rerun of stats/primary/robustness.R
