@@ -11,7 +11,7 @@
 #   make data           # extract, combine and process the exports into data/<name>/ (private
 #                       # inputs: the raw exports and Vertex AI credit for the message filter)
 #   make test           # the integrity suite on the dataset, the Python unit tests and the R tests
-#   make estimates         # fit every model script in stats/ whose estimates are out of date
+#   make estimates      # fit every model script in stats/ whose estimates are out of date
 #   make report         # the macros (inferential and descriptive) and the figures from the estimates
 #   make sync           # copy results/macros and figures into writing/manuscript/
 # `make all` runs data, test, estimates and report in that order.
@@ -66,7 +66,6 @@ MODEL_INPUTS_DIR = $(DATA_DIR)/model_inputs
 RESULTS_DIR = $(if $(filter full,$(DATASET)),results,$(DATA_DIR)/results)
 ESTIMATES_DIR = $(RESULTS_DIR)/estimates
 MACROS_DIR = $(RESULTS_DIR)/macros
-PLOTS_DIR = $(RESULTS_DIR)/plots
 PAPER_FIGURES_DIR = figures/paper_files
 MANUSCRIPT_DIR = writing/manuscript
 RUNS_FILE = $(DATA_DIR)/runs.txt
@@ -150,7 +149,10 @@ ESTIMATES = $(patsubst stats/%.R,$(ESTIMATES_DIR)/%.csv,$(SCRIPTS))
 GAMES = $(TABLES_DIR)/games.csv
 PLAYERS = $(TABLES_DIR)/players.csv
 TRIALS = $(TABLES_DIR)/trials.csv
-UTTERANCES = $(TABLES_DIR)/speaker_utterances.csv
+# The scripts read the filtered utterances when they exist (stats/config.R),
+# after checking them against messages.csv through the sidecar
+FILTERED_UTTERANCES = $(TABLES_DIR)/speaker_utterances_filtered.csv
+UTTERANCES = $(if $(wildcard $(FILTERED_UTTERANCES)),$(FILTERED_UTTERANCES) $(TABLES_DIR)/speaker_utterances_filtered.source.json $(TABLES_DIR)/messages.csv,$(TABLES_DIR)/speaker_utterances.csv)
 SOCIAL_GUESSES = $(TABLES_DIR)/social_guesses.csv
 PAIRWISE = $(MEASURES_DIR)/pairwise_similarities.csv $(MEASURES_DIR)/pairwise_similarities_jaccard.csv
 WITHIN_GROUP_MEANS = $(MODEL_INPUTS_DIR)/within_group_block_means.csv $(MODEL_INPUTS_DIR)/within_group_block_means_jaccard.csv
@@ -166,16 +168,16 @@ $(ESTIMATES_DIR)/primary/h3a.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv
 $(ESTIMATES_DIR)/primary/h3b.csv: $(WITHIN_GROUP_MEANS)
 $(ESTIMATES_DIR)/primary/h3c.csv: $(FINAL_PROPERTIES)
 $(ESTIMATES_DIR)/primary/h4.csv: $(TRIALS) $(SOCIAL_GUESSES) $(GAMES)
-$(ESTIMATES_DIR)/primary/robustness.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv $(ESTIMATES_DIR)/primary/h4.csv $(UTTERANCES) $(PLAYERS) $(MODEL_INPUTS_DIR)/within_group_block_means.csv $(FINAL_PROPERTIES)
-$(ESTIMATES_DIR)/primary/bayes_factors.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv $(ESTIMATES_DIR)/primary/h4.csv
-$(ESTIMATES_DIR)/secondary/semantic_change.csv: $(MEASURES_DIR)/phase_change_similarities.csv $(GAMES)
+$(ESTIMATES_DIR)/primary/robustness.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv $(ESTIMATES_DIR)/primary/h4.csv $(UTTERANCES) $(TRIALS) $(SOCIAL_GUESSES) $(GAMES) $(MODEL_INPUTS_DIR)/within_group_block_means.csv $(FINAL_PROPERTIES)
+$(ESTIMATES_DIR)/primary/bayes_factors.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv $(ESTIMATES_DIR)/primary/h4.csv $(TRIALS) $(SOCIAL_GUESSES) $(GAMES)
+$(ESTIMATES_DIR)/secondary/semantic_change.csv: $(MEASURES_DIR)/phase_change_similarities.csv
 $(ESTIMATES_DIR)/secondary/phase2_accuracy.csv: $(TRIALS) $(GAMES)
 $(ESTIMATES_DIR)/secondary/ingroup_advantage.csv: $(MODEL_INPUTS_DIR)/ingroup_advantage.csv
 $(ESTIMATES_DIR)/secondary/specificity_vs_social_accuracy.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv $(SOCIAL_GUESSES) $(GAMES)
 $(ESTIMATES_DIR)/secondary/social_accuracy_trend.csv: $(SOCIAL_GUESSES) $(GAMES)
 $(ESTIMATES_DIR)/secondary/phase2_length.csv: $(UTTERANCES) $(GAMES)
 $(ESTIMATES_DIR)/secondary/utterance_properties.csv: $(FINAL_PROPERTIES)
-$(ESTIMATES_DIR)/exploratory/social_phase2_specificity.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv $(PLAYERS) $(GAMES)
+$(ESTIMATES_DIR)/exploratory/social_phase2_specificity.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv $(GAMES)
 
 $(ESTIMATES_DIR)/%.csv: stats/%.R $(R_COMMON)
 	Rscript $<
