@@ -461,25 +461,6 @@
     ],
     "commit": "d4522ae"
   },
-  "primary/h4_response_opportunities": {
-    "file": "primary/h4_response_opportunities.csv",
-    "source": "stats/primary/h4.R",
-    "rows": 4,
-    "columns": [
-      "outcome",
-      "condition",
-      "phaseNum",
-      "opportunities",
-      "excluded_technical",
-      "excluded_participant",
-      "scored",
-      "on_time",
-      "on_time_rate",
-      "accuracy",
-      "accuracy_on_time"
-    ],
-    "commit": "d4522ae"
-  },
   "primary/h4_social_components": {
     "file": "primary/h4_social_components.csv",
     "source": "stats/primary/h4.R",
