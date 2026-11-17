@@ -24,7 +24,7 @@ suppressPackageStartupMessages({
   library(lmerTest)
   library(emmeans)
 })
-list2env(load_tables(), envir = globalenv())
+list2env(load_tables("games", "speaker_utts"), envir = globalenv())
 
 p2_utts <- phase2_utterances(speaker_utts, games) |>
   mutate(logUttLength = log(uttLength)) |>

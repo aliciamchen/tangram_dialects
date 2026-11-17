@@ -22,12 +22,15 @@ suppressPackageStartupMessages({
   library(lmerTest)
   library(emmeans)
 })
-list2env(load_tables(), envir = globalenv())
+list2env(load_tables("phase_change"), envir = globalenv())
 
 SWITCH_THRESHOLD <- 0.5
 
 if (!has_rows(phase_change)) {
-  stop("phase_change_similarities.csv is missing; run the measures step first.", call. = FALSE)
+  stop(
+    "phase_change_similarities.csv is missing; run the measures step first.",
+    call. = FALSE
+  )
 }
 phase_change <- phase_change |>
   mutate(condition = factor(condition, levels = CONDITION_ORDER)) |>
@@ -37,27 +40,47 @@ rows <- tibble()
 coefficient_rows <- tibble()
 if (n_distinct(phase_change$condition) >= 2) {
   m_semantic <- fit_progressively(
-    simPhase1Phase2 ~ condition + (1 | gameId) + (1 | group) + (1 | playerId) + (1 | target),
+    simPhase1Phase2 ~ condition +
+      (1 | gameId) +
+      (1 | group) +
+      (1 | playerId) +
+      (1 | target),
     data = phase_change
   )
   print(summary(m_semantic))
   report_effect_sizes(m_semantic)
-  coefficient_rows <- tidy_coefficients(m_semantic, "semantic_change", n_games = n_distinct(phase_change$gameId))
-  if (all(c("refer_separated", "refer_mixed", "social_mixed") %in% phase_change$condition)) {
+  coefficient_rows <- tidy_coefficients(
+    m_semantic,
+    "semantic_change",
+    n_games = n_distinct(phase_change$gameId)
+  )
+  if (
+    all(
+      c("refer_separated", "refer_mixed", "social_mixed") %in%
+        phase_change$condition
+    )
+  ) {
     lv <- levels(droplevels(phase_change$condition))
-    contrasts_semantic <- contrast(emmeans(m_semantic, "condition"), list(
-      sep_gt_mixed = pairwise_weights(lv, "refer_separated", "refer_mixed"),
-      social_gt_mixed = pairwise_weights(lv, "social_mixed", "refer_mixed")
-    ))
+    contrasts_semantic <- contrast(
+      emmeans(m_semantic, "condition"),
+      list(
+        sep_gt_mixed = pairwise_weights(lv, "refer_separated", "refer_mixed"),
+        social_gt_mixed = pairwise_weights(lv, "social_mixed", "refer_mixed")
+      )
+    )
     cat("\nPlanned contrasts (positive = predicted direction):\n")
     print(summary(contrasts_semantic, infer = c(TRUE, TRUE)))
     rows <- tidy_contrasts(
-      contrasts_semantic, "semantic_change",
-      n_obs = nobs(m_semantic), n_games = n_distinct(phase_change$gameId),
+      contrasts_semantic,
+      "semantic_change",
+      n_obs = nobs(m_semantic),
+      n_games = n_distinct(phase_change$gameId),
       random_effects = random_effects_structure(m_semantic)
     )
   } else {
-    cat("\nThe planned contrasts need refer_separated, refer_mixed and social_mixed.\n")
+    cat(
+      "\nThe planned contrasts need refer_separated, refer_mixed and social_mixed.\n"
+    )
   }
 } else {
   cat("Only one condition; the condition model is not fit.\n")
@@ -76,9 +99,24 @@ switched <- phase_change |>
   ) |>
   filter(n > 0) |>
   mutate(switch_threshold = SWITCH_THRESHOLD)
-cat(sprintf("\nPhase 1 to Phase 2 self-similarity by condition (switched: below %.1f):\n", SWITCH_THRESHOLD))
+cat(sprintf(
+  "\nPhase 1 to Phase 2 self-similarity by condition (switched: below %.1f):\n",
+  SWITCH_THRESHOLD
+))
 print(knitr::kable(switched, digits = 3))
 
-write_estimates(rows, "secondary/semantic_change", source = "stats/secondary/semantic_change.R")
-write_estimates(coefficient_rows, "secondary/semantic_change_coefficients", source = "stats/secondary/semantic_change.R")
-write_estimates(switched, "secondary/semantic_change_switched", source = "stats/secondary/semantic_change.R")
+write_estimates(
+  rows,
+  "secondary/semantic_change",
+  source = "stats/secondary/semantic_change.R"
+)
+write_estimates(
+  coefficient_rows,
+  "secondary/semantic_change_coefficients",
+  source = "stats/secondary/semantic_change.R"
+)
+write_estimates(
+  switched,
+  "secondary/semantic_change_switched",
+  source = "stats/secondary/semantic_change.R"
+)

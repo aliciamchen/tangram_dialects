@@ -12,7 +12,7 @@
 # per test with its statistic, degrees of freedom and p-value.
 
 source(here::here("stats", "config.R"))
-list2env(load_tables(), envir = globalenv())
+list2env(load_tables("games", "players", "exit_survey"), envir = globalenv())
 
 pa <- player_attrition(players, games)
 status <- game_status(games)
@@ -28,7 +28,12 @@ if (!is.null(dropout_tests$games)) {
   print(dropout_tests$games)
 }
 
-survey <- exit_survey_responses(players, games)
+# The respondents and their typed answers are the pipeline's exit_survey.csv
+survey <- if (has_rows(exit_survey)) {
+  add_condition(exit_survey, games)
+} else {
+  tibble()
+}
 survey_tests <- list()
 for (item in c("groupIdentification", "groupCloseness")) {
   if (has_field(survey, item)) {

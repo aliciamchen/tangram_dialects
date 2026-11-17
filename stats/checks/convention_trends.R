@@ -26,24 +26,36 @@ suppressPackageStartupMessages({
   library(lme4)
   library(lmerTest)
 })
-list2env(load_tables(), envir = globalenv())
+list2env(
+  load_tables("games", "trials", "speaker_utts", "adjacent_sim"),
+  envir = globalenv()
+)
 
 check_data <- convention_check_data(speaker_utts, trials, adjacent_sim, games)
 p1_utts <- check_data$shared_phase1$utterances |>
   mutate(logUttLength = log(uttLength))
 p1_listener <- check_data$shared_phase1$listener_trials
 p1_adjacent <- check_data$shared_phase1$adjacent
-cat("Pooled trend-model conditions:", paste(H12_CONDITIONS, collapse = ", "), "\n")
+cat(
+  "Pooled trend-model conditions:",
+  paste(H12_CONDITIONS, collapse = ", "),
+  "\n"
+)
 cat(sprintf(
   "%d games, %d Phase 1 descriptions, %d listener trials with an outcome\n",
-  n_distinct(p1_utts$gameId), nrow(p1_utts), sum(!is.na(p1_listener$correct))
+  n_distinct(p1_utts$gameId),
+  nrow(p1_utts),
+  sum(!is.na(p1_listener$correct))
 ))
 
 # ── 1. Description length decreases over blocks ───────────────────────────
 cat("\n=== Description length ===\n")
 m_length <- fit_progressively(
-  logUttLength ~ blockNum_c + (blockNum_c | participant) + (blockNum_c | group) +
-    (blockNum_c | tangram) + (1 | group:tangram),
+  logUttLength ~ blockNum_c +
+    (blockNum_c | participant) +
+    (blockNum_c | group) +
+    (blockNum_c | tangram) +
+    (1 | group:tangram),
   data = p1_utts |> filter(is.finite(logUttLength))
 )
 print(summary(m_length))
@@ -57,7 +69,10 @@ cat(sprintf(
 # ── 2. Listener accuracy increases over blocks ────────────────────────────
 cat("\n=== Listener accuracy ===\n")
 m_accuracy <- fit_progressively(
-  correct ~ blockNum_c + (blockNum_c | group) + (1 | tangram) + (1 | group:tangram),
+  correct ~ blockNum_c +
+    (blockNum_c | group) +
+    (1 | tangram) +
+    (1 | group:tangram),
   data = p1_listener,
   family = binomial
 )
@@ -71,13 +86,18 @@ if (has_rows(p1_adjacent)) {
   cat("\n=== Adjacent similarity ===\n")
   p1_adjacent_valid <- p1_adjacent |> filter(!is.na(simAdjacent))
   m_adjacent <- fit_progressively(
-    simAdjacent ~ blockNum_c + (blockNum_c | group) + (1 | tangram) + (1 | group:tangram),
+    simAdjacent ~ blockNum_c +
+      (blockNum_c | group) +
+      (1 | tangram) +
+      (1 | group:tangram),
     data = p1_adjacent_valid
   )
   print(summary(m_adjacent))
   report_effect_sizes(m_adjacent)
 } else {
-  cat("\nNo shared-Phase-1 adjacent similarity observations; check 3 skipped.\n")
+  cat(
+    "\nNo shared-Phase-1 adjacent similarity observations; check 3 skipped.\n"
+  )
 }
 
 # ── Estimates ─────────────────────────────────────────────────────────────
@@ -86,16 +106,29 @@ if (has_rows(p1_adjacent)) {
 # `n_obs` is what the fit used.
 rows <- bind_rows(
   tidy_coefficients(
-    m_length, "length", terms = "blockNum_c",
-    n_games = n_distinct(p1_utts$gameId), n_rows = nrow(p1_utts)
+    m_length,
+    "length",
+    terms = "blockNum_c",
+    n_games = n_distinct(p1_utts$gameId),
+    n_rows = nrow(p1_utts)
   ),
   tidy_coefficients(
-    m_accuracy, "accuracy", terms = "blockNum_c",
-    n_games = n_distinct(p1_listener$gameId), n_rows = sum(!is.na(p1_listener$correct))
+    m_accuracy,
+    "accuracy",
+    terms = "blockNum_c",
+    n_games = n_distinct(p1_listener$gameId),
+    n_rows = sum(!is.na(p1_listener$correct))
   ),
   tidy_coefficients(
-    m_adjacent, "adjacent_similarity", terms = "blockNum_c",
-    n_games = n_distinct(p1_adjacent_valid$gameId), n_rows = nrow(p1_adjacent_valid)
+    m_adjacent,
+    "adjacent_similarity",
+    terms = "blockNum_c",
+    n_games = n_distinct(p1_adjacent_valid$gameId),
+    n_rows = nrow(p1_adjacent_valid)
   )
 )
-write_estimates(rows, "checks/convention_trends", source = "stats/checks/convention_trends.R")
+write_estimates(
+  rows,
+  "checks/convention_trends",
+  source = "stats/checks/convention_trends.R"
+)

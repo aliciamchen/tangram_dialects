@@ -16,12 +16,15 @@
 # the social-accuracy coefficient of the OLS and the weighted fit.
 
 source(here::here("stats", "config.R"))
-list2env(load_tables(), envir = globalenv())
+list2env(load_tables("games", "social_guesses"), envir = globalenv())
 
 if (!has_rows(social_guesses)) {
   stop("No social guess data.", call. = FALSE)
 }
-gs <- gs_wide(require_estimates("primary/group_specificity", "stats/primary/group_specificity.R"))
+gs <- gs_wide(require_estimates(
+  "primary/group_specificity",
+  "stats/primary/group_specificity.R"
+))
 
 # Mean social accuracy per game over eligible response opportunities
 social_acc_by_game <- social_guess_trials(social_guesses, games) |>
@@ -41,8 +44,11 @@ fit_gs_social <- function(weights = NULL) {
 }
 ols <- fit_gs_social()
 if (is.null(ols$model) || nrow(ols$data) < 4) {
-  stop("Not enough games in the two social conditions for the regression",
-       if (!is.null(ols$note)) paste0(" (", ols$note, ")"), call. = FALSE)
+  stop(
+    "Not enough games in the two social conditions for the regression",
+    if (!is.null(ols$note)) paste0(" (", ols$note, ")"),
+    call. = FALSE
+  )
 }
 cat(sprintf("Games in the model: %d\n", nrow(ols$data)))
 print(knitr::kable(ols$data |> count(condition, name = "games")))
@@ -54,23 +60,38 @@ social_accuracy_row <- function(fit, analysis) {
   if (is.null(fit$model)) {
     return(tibble())
   }
-  co <- broom::tidy(fit$model, conf.int = TRUE) |> filter(term == "social_accuracy")
-  tidy_coefficients(fit$model, analysis, terms = "social_accuracy", n_games = nrow(fit$data)) |>
+  co <- broom::tidy(fit$model, conf.int = TRUE) |>
+    filter(term == "social_accuracy")
+  tidy_coefficients(
+    fit$model,
+    analysis,
+    terms = "social_accuracy",
+    n_games = nrow(fit$data)
+  ) |>
     mutate(lower = co$conf.low, upper = co$conf.high)
 }
 rows <- social_accuracy_row(ols, "specificity_vs_social_accuracy")
 cat(sprintf(
   "\nSocial accuracy coefficient (OLS): %.3f, 95%% CI [%.3f, %.3f], p = %s\n",
-  rows$estimate, rows$lower, rows$upper, fmt_pval(rows$p_value)
+  rows$estimate,
+  rows$lower,
+  rows$upper,
+  fmt_pval(rows$p_value)
 ))
 wls <- fit_gs_social(weights = "weight")
 if (!is.null(wls$model)) {
   wls_row <- social_accuracy_row(wls, "specificity_vs_social_accuracy_wls")
   cat(sprintf(
     "Robustness, inverse-variance weights (1 / SE_phase2^2): %.3f, 95%% CI [%.3f, %.3f], p = %s\n",
-    wls_row$estimate, wls_row$lower, wls_row$upper, fmt_pval(wls_row$p_value)
+    wls_row$estimate,
+    wls_row$lower,
+    wls_row$upper,
+    fmt_pval(wls_row$p_value)
   ))
   rows <- bind_rows(rows, wls_row)
 }
-write_estimates(rows, "secondary/specificity_vs_social_accuracy",
-                source = "stats/secondary/specificity_vs_social_accuracy.R")
+write_estimates(
+  rows,
+  "secondary/specificity_vs_social_accuracy",
+  source = "stats/secondary/specificity_vs_social_accuracy.R"
+)

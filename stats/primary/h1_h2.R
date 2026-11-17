@@ -28,7 +28,10 @@
 source(here::here("stats", "config.R"))
 suppressPackageStartupMessages(library(emmeans))
 
-gs <- gs_wide(require_estimates("primary/group_specificity", "stats/primary/group_specificity.R"))
+gs <- gs_wide(require_estimates(
+  "primary/group_specificity",
+  "stats/primary/group_specificity.R"
+))
 
 # ── Ordinary least squares and the planned contrasts ──────────────────────
 h12 <- fit_h12(gs)
@@ -49,11 +52,17 @@ support_sentence(h12$contrasts, "H2 (social_mixed > refer_mixed)", row = 2)
 # The primary effect size is the adjusted difference in the contrast above,
 # in group-specificity units; the unadjusted d is for comparison with the
 # sampling plan only.
-effect_sizes <- rbind(
-  cohens_d_games(h12$data, "gs_phase2", "condition", "refer_separated", "refer_mixed"),
-  cohens_d_games(h12$data, "gs_phase2", "condition", "social_mixed", "refer_mixed")
+effect_sizes <- do.call(
+  rbind,
+  lapply(unname(H12_CONTRASTS), function(pair) {
+    cohens_d_games(h12$data, "gs_phase2", "condition", pair[1], pair[2])
+  })
 ) |>
-  mutate(analysis = "h1_h2", quantity = "unadjusted two-sample d (power-analysis scale)", .before = 1)
+  mutate(
+    analysis = "h1_h2",
+    quantity = "unadjusted two-sample d (power-analysis scale)",
+    .before = 1
+  )
 cat("\nUnadjusted game-level Cohen's d (the sampling plan's scale):\n")
 print(effect_sizes)
 
@@ -64,26 +73,55 @@ print_weighted_check(h12, h12_wls)
 
 # ── Robustness: content-word Jaccard similarity ───────────────────────────
 gs_jaccard <- gs_wide(read_estimates("primary/group_specificity_jaccard"))
-h12_jaccard <- if (has_rows(gs_jaccard)) fit_h12(gs_jaccard) else list(contrasts = NULL, data = tibble())
+h12_jaccard <- if (has_rows(gs_jaccard)) {
+  fit_h12(gs_jaccard)
+} else {
+  list(contrasts = NULL, data = tibble())
+}
 h12_jaccard_reported <- !is.null(h12_jaccard$contrasts) &&
   all(table(h12_jaccard$data$condition) >= 2)
 if (h12_jaccard_reported) {
-  cat(sprintf("\nH1/H2 on Jaccard similarity (%d games):\n", nrow(h12_jaccard$data)))
-  print(knitr::kable(bind_rows(
-    contrast_table(h12$contrasts, "primary (SBERT)"),
-    contrast_table(h12_jaccard$contrasts, "Jaccard")
-  ), digits = 3))
+  cat(sprintf(
+    "\nH1/H2 on Jaccard similarity (%d games):\n",
+    nrow(h12_jaccard$data)
+  ))
+  print(knitr::kable(
+    bind_rows(
+      contrast_table(h12$contrasts, "primary (SBERT)"),
+      contrast_table(h12_jaccard$contrasts, "Jaccard")
+    ),
+    digits = 3
+  ))
 } else {
-  cat("\nH1/H2 on Jaccard similarity needs at least two games per condition; skipped",
-      if (!is.null(h12_jaccard$note)) paste0(" (", h12_jaccard$note, ")"), ".\n", sep = "")
+  cat(
+    "\nH1/H2 on Jaccard similarity needs at least two games per condition; skipped",
+    if (!is.null(h12_jaccard$note)) paste0(" (", h12_jaccard$note, ")"),
+    ".\n",
+    sep = ""
+  )
 }
 
 # ── Estimates ─────────────────────────────────────────────────────────────
 rows <- bind_rows(
-  tidy_contrasts(h12$contrasts, "h1_h2", n_games = nrow(h12$data), measure = "sbert"),
-  tidy_contrasts(h12_wls$contrasts, "h1_h2_wls", n_games = nrow(h12_wls$data), measure = "sbert"),
+  tidy_contrasts(
+    h12$contrasts,
+    "h1_h2",
+    n_games = nrow(h12$data),
+    measure = "sbert"
+  ),
+  tidy_contrasts(
+    h12_wls$contrasts,
+    "h1_h2_wls",
+    n_games = nrow(h12_wls$data),
+    measure = "sbert"
+  ),
   if (h12_jaccard_reported) {
-    tidy_contrasts(h12_jaccard$contrasts, "h1_h2_jaccard", n_games = nrow(h12_jaccard$data), measure = "jaccard")
+    tidy_contrasts(
+      h12_jaccard$contrasts,
+      "h1_h2_jaccard",
+      n_games = nrow(h12_jaccard$data),
+      measure = "jaccard"
+    )
   }
 )
 write_estimates(rows, "primary/h1_h2", source = "stats/primary/h1_h2.R")
@@ -95,4 +133,8 @@ write_estimates(
   "primary/h1_h2_coefficients",
   source = "stats/primary/h1_h2.R"
 )
-write_estimates(effect_sizes, "primary/h1_h2_effect_sizes", source = "stats/primary/h1_h2.R")
+write_estimates(
+  effect_sizes,
+  "primary/h1_h2_effect_sizes",
+  source = "stats/primary/h1_h2.R"
+)

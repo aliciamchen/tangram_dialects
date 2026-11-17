@@ -20,7 +20,10 @@
 source(here::here("stats", "config.R"))
 suppressPackageStartupMessages(library(emmeans))
 
-gs <- gs_wide(require_estimates("primary/group_specificity", "stats/primary/group_specificity.R"))
+gs <- gs_wide(require_estimates(
+  "primary/group_specificity",
+  "stats/primary/group_specificity.R"
+))
 
 enough <- function(fit) {
   !is.null(fit$model) && !is.null(fit$contrasts) && nrow(fit$data) >= 4
@@ -40,8 +43,19 @@ print(summary(h3a$model))
 report_effect_sizes(h3a$model)
 print(summary(h3a$contrasts, infer = c(TRUE, TRUE)))
 support_sentence(h3a$contrasts, "H3a (social_first > social_mixed)")
-effect_sizes <- cohens_d_games(h3a$data, "gs_phase1", "condition", "social_first", "social_mixed") |>
-  mutate(analysis = "h3a", quantity = "two-sample d (the effect size of the test)", .before = 1)
+h3a_pair <- H3A_CONTRASTS$H3a_socialfirst_gt_socialmixed
+effect_sizes <- cohens_d_games(
+  h3a$data,
+  "gs_phase1",
+  "condition",
+  h3a_pair[1],
+  h3a_pair[2]
+) |>
+  mutate(
+    analysis = "h3a",
+    quantity = "two-sample d (the effect size of the test)",
+    .before = 1
+  )
 cat("\nCohen's d:\n")
 print(effect_sizes)
 
@@ -50,24 +64,54 @@ h3a_wls <- fit_h3a(gs, weights = "weight_p1")
 print_weighted_check(h3a, h3a_wls)
 
 gs_jaccard <- gs_wide(read_estimates("primary/group_specificity_jaccard"))
-h3a_jaccard <- if (has_rows(gs_jaccard)) fit_h3a(gs_jaccard) else list(contrasts = NULL, data = tibble())
-h3a_jaccard_reported <- !is.null(h3a_jaccard$contrasts) && nrow(h3a_jaccard$data) >= 4
-if (h3a_jaccard_reported) {
-  cat(sprintf("\nH3a on Jaccard similarity (%d games):\n", nrow(h3a_jaccard$data)))
-  print(knitr::kable(bind_rows(
-    contrast_table(h3a$contrasts, "primary (SBERT)"),
-    contrast_table(h3a_jaccard$contrasts, "Jaccard")
-  ), digits = 3))
+h3a_jaccard <- if (has_rows(gs_jaccard)) {
+  fit_h3a(gs_jaccard)
 } else {
-  cat("\nH3a on Jaccard similarity needs both social conditions with at least two games each; skipped",
-      if (!is.null(h3a_jaccard$note)) paste0(" (", h3a_jaccard$note, ")"), ".\n", sep = "")
+  list(contrasts = NULL, data = tibble())
+}
+h3a_jaccard_reported <- !is.null(h3a_jaccard$contrasts) &&
+  nrow(h3a_jaccard$data) >= 4
+if (h3a_jaccard_reported) {
+  cat(sprintf(
+    "\nH3a on Jaccard similarity (%d games):\n",
+    nrow(h3a_jaccard$data)
+  ))
+  print(knitr::kable(
+    bind_rows(
+      contrast_table(h3a$contrasts, "primary (SBERT)"),
+      contrast_table(h3a_jaccard$contrasts, "Jaccard")
+    ),
+    digits = 3
+  ))
+} else {
+  cat(
+    "\nH3a on Jaccard similarity needs both social conditions with at least two games each; skipped",
+    if (!is.null(h3a_jaccard$note)) paste0(" (", h3a_jaccard$note, ")"),
+    ".\n",
+    sep = ""
+  )
 }
 
 rows <- bind_rows(
-  tidy_contrasts(h3a$contrasts, "h3a", n_games = nrow(h3a$data), measure = "sbert"),
-  tidy_contrasts(h3a_wls$contrasts, "h3a_wls", n_games = nrow(h3a_wls$data), measure = "sbert"),
+  tidy_contrasts(
+    h3a$contrasts,
+    "h3a",
+    n_games = nrow(h3a$data),
+    measure = "sbert"
+  ),
+  tidy_contrasts(
+    h3a_wls$contrasts,
+    "h3a_wls",
+    n_games = nrow(h3a_wls$data),
+    measure = "sbert"
+  ),
   if (h3a_jaccard_reported) {
-    tidy_contrasts(h3a_jaccard$contrasts, "h3a_jaccard", n_games = nrow(h3a_jaccard$data), measure = "jaccard")
+    tidy_contrasts(
+      h3a_jaccard$contrasts,
+      "h3a_jaccard",
+      n_games = nrow(h3a_jaccard$data),
+      measure = "jaccard"
+    )
   }
 )
 write_estimates(rows, "primary/h3a", source = "stats/primary/h3a.R")
@@ -79,4 +123,8 @@ write_estimates(
   "primary/h3a_coefficients",
   source = "stats/primary/h3a.R"
 )
-write_estimates(effect_sizes, "primary/h3a_effect_sizes", source = "stats/primary/h3a.R")
+write_estimates(
+  effect_sizes,
+  "primary/h3a_effect_sizes",
+  source = "stats/primary/h3a.R"
+)

@@ -167,7 +167,12 @@ check(
   length(out) == 1 && grepl("^H1: ", out) && grepl("supported|contrary", v)
 )
 ratio_tab <- tibble(
-  contrast = "x", estimate = 1.2, SE = 0.3, lower = 0.7, upper = 2.1, p.value = 0.4
+  contrast = "x",
+  estimate = 1.2,
+  SE = 0.3,
+  lower = 0.7,
+  upper = 2.1,
+  p.value = 0.4
 )
 v_ratio <- support_sentence(ratio_tab, "H4a", null = 1)
 check(
@@ -175,10 +180,74 @@ check(
   grepl("not supported .*predicted direction", v_ratio)
 )
 v_contrary <- support_sentence(
-  tibble(contrast = "x", estimate = -0.3, SE = 0.05, lower = -0.4, upper = -0.2, p.value = 0.001),
+  tibble(
+    contrast = "x",
+    estimate = -0.3,
+    SE = 0.05,
+    lower = -0.4,
+    upper = -0.2,
+    p.value = 0.001
+  ),
   "H3a"
 )
 check(
   "a significant effect the other way is reported as contrary",
   grepl("contrary", v_contrary)
+)
+
+# ── h4_specs(): the one definition of the two H4 tests ───────────────────────
+
+h4_games <- tibble(
+  gameId = c("g1", "g2", "g3"),
+  condition = c("social_mixed", "social_first", "refer_mixed")
+)
+# A Phase 2 listener per game, a Phase 1 listener and a speaker row
+h4_trials <- tibble(
+  gameId = c("g1", "g2", "g3", "g1", "g1"),
+  playerId = c("p1", "p2", "p3", "p4", "p5"),
+  roundId = "r1",
+  role = c("listener", "listener", "listener", "listener", "speaker"),
+  phaseNum = c(2, 2, 2, 1, 2),
+  blockNum = 1,
+  target = "t1",
+  clicked = c("t1", "t2", "t1", "t1", NA),
+  lateClick = FALSE,
+  responseOpportunity = c(TRUE, TRUE, TRUE, TRUE, FALSE),
+  correct = c(1, 0, 1, 1, NA),
+  onTime = c(TRUE, TRUE, TRUE, TRUE, NA),
+  speakerId = "p5",
+  inGroupSpeaker = c(TRUE, FALSE, TRUE, TRUE, NA)
+)
+h4_guesses <- tibble(
+  gameId = c("g1", "g2"),
+  playerId = c("p1", "p2"),
+  roundId = "r1",
+  phaseNum = 2,
+  blockNum = 1,
+  target = "t1",
+  speakerId = "p5",
+  socialTimeout = FALSE,
+  lateSocialGuess = FALSE,
+  responseOpportunity = TRUE,
+  correct = c(1, 0),
+  onTime = TRUE
+)
+h4 <- h4_specs(h4_trials, h4_guesses, h4_games)
+# The preregistered tests: Phase 2 of the two social conditions only, so the
+# refer_mixed listener (p3), the Phase 1 listener (p4) and the speaker (p5)
+# are in neither model
+check(
+  "both H4 tests are fit to the Phase 2 listeners of the two social conditions",
+  identical(h4$H4a$data$playerId, c("p1", "p2")) &&
+    identical(h4$H4b$data$playerId, c("p1", "p2"))
+)
+check(
+  "each contrast is the predicted direction on (social_mixed, social_first), with its own lateness flag",
+  identical(h4$H4a$weights, list(H4a_socialfirst_gt_socialmixed = c(-1, 1))) &&
+    identical(
+      h4$H4b$weights,
+      list(H4b_socialmixed_gt_socialfirst = c(1, -1))
+    ) &&
+    h4$H4a$late == "lateSocialGuess" &&
+    h4$H4b$late == "lateClick"
 )

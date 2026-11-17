@@ -19,7 +19,7 @@
 # shared-Phase-1 conditions.
 
 source(here::here("stats", "config.R"))
-list2env(load_tables(), envir = globalenv())
+list2env(load_tables("games", "pairwise_sim"), envir = globalenv())
 
 p1_pairwise <- pairwise_sim |> filter(window == "phase1_final")
 if (!has_rows(p1_pairwise)) {

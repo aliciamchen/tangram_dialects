@@ -140,8 +140,10 @@ final-exports: ## Stage the final export of each server period, plus every serve
 # Every script stats/<family>/<name>.R writes results/estimates/<family>/<name>.csv,
 # so a new script is a target as soon as the file exists. The lines below name
 # the data and the estimates each table depends on, so that `make estimates`
-# reruns only what changed; a new script needs one such line. The pattern rule
-# at the end supplies the recipe.
+# reruns only what changed; a new script needs one such line. A line names the
+# files of the tables its script loads with load_tables() and the estimates of
+# the scripts it reads from, and stats/tests/test_script_inputs.R fails when
+# the two disagree. The pattern rule at the end supplies the recipe.
 
 SCRIPTS = $(filter-out stats/R/% stats/tests/%,$(wildcard stats/*/*.R))
 ESTIMATES = $(patsubst stats/%.R,$(ESTIMATES_DIR)/%.csv,$(SCRIPTS))
@@ -160,7 +162,7 @@ FINAL_PROPERTIES = $(MODEL_INPUTS_DIR)/final_phase_properties.csv
 
 $(ESTIMATES_DIR)/checks/convention_trends.csv: $(UTTERANCES) $(TRIALS) $(GAMES) $(MEASURES_DIR)/adjacent_similarities.csv
 $(ESTIMATES_DIR)/checks/phase1_group_specificity.csv: $(MEASURES_DIR)/pairwise_similarities.csv $(GAMES)
-$(ESTIMATES_DIR)/checks/dropout_and_survey.csv: $(PLAYERS) $(GAMES)
+$(ESTIMATES_DIR)/checks/dropout_and_survey.csv: $(PLAYERS) $(GAMES) $(TABLES_DIR)/exit_survey.csv
 $(ESTIMATES_DIR)/checks/specificity_trajectory.csv: $(MEASURES_DIR)/block_pairwise_similarities.csv $(TRIALS) $(GAMES)
 $(ESTIMATES_DIR)/primary/group_specificity.csv: $(PAIRWISE) $(GAMES)
 $(ESTIMATES_DIR)/primary/h1_h2.csv: $(ESTIMATES_DIR)/primary/group_specificity.csv
@@ -194,11 +196,14 @@ bayes-factors: $(ESTIMATES_DIR)/primary/bayes_factors.csv  ## Only the Bayes fac
 
 macros: inferential descriptives  ## Both macro writers
 
+# For the full sample a writer stops when a macro the current file defines
+# would no longer be written; `make macros MACRO_ARGS=--allow-removed` writes
+# the files once the removal is known to be intended.
 inferential: ## The inferential macros (checks, primary, secondary) from results/estimates/
-	$(PY) -m report.inferential --dataset $(DATASET)
+	$(PY) -m report.inferential --dataset $(DATASET) $(MACRO_ARGS)
 
 descriptives: ## The descriptive macros (overview, exploratory, survey) from the tables, the measures and the estimates
-	$(PY) -m report.descriptives --dataset $(DATASET)
+	$(PY) -m report.descriptives --dataset $(DATASET) $(MACRO_ARGS)
 
 figures: ## The article's figures → results/plots/
 	$(PY) -m report.figures --dataset $(DATASET)

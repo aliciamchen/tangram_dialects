@@ -18,7 +18,10 @@
 # phase, `gameBlock` across the game, as trials.csv carries them).
 
 source(here::here("stats", "config.R"))
-list2env(load_tables(), envir = globalenv())
+list2env(
+  load_tables("games", "trials", "block_pairwise_sim"),
+  envir = globalenv()
+)
 
 if (!has_rows(block_pairwise_sim)) {
   stop(

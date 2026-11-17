@@ -13,7 +13,7 @@
 
 source(here::here("stats", "config.R"))
 suppressPackageStartupMessages(library(lme4))
-list2env(load_tables(), envir = globalenv())
+list2env(load_tables("games", "social_guesses"), envir = globalenv())
 
 if (!has_rows(social_guesses)) {
   stop("No social guess data.", call. = FALSE)

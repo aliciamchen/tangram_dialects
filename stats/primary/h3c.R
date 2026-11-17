@@ -21,7 +21,7 @@ suppressPackageStartupMessages({
   library(lme4)
   library(lmerTest)
 })
-list2env(load_tables(), envir = globalenv())
+list2env(load_tables("final_props"), envir = globalenv())
 
 if (!has_rows(final_props)) {
   stop(

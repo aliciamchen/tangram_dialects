@@ -24,6 +24,7 @@
 
 source(here::here("stats", "config.R"))
 suppressPackageStartupMessages(library(emmeans))
+list2env(load_tables("games"), envir = globalenv())
 
 gs <- gs_wide(require_estimates(
   "primary/group_specificity",
@@ -73,7 +74,7 @@ write_estimates(
 )
 
 # ── Complete nine-player games ────────────────────────────────────────────
-complete <- complete_games(read_table("games.csv"))
+complete <- complete_games(games)
 fit_complete <- fit_game_level(
   gs |> filter(gameId %in% complete),
   outcome = "gs_phase2",

@@ -44,7 +44,17 @@ suppressPackageStartupMessages({
   library(lme4)
   library(emmeans)
 })
-list2env(load_tables(), envir = globalenv())
+list2env(
+  load_tables(
+    "games",
+    "trials",
+    "speaker_utts",
+    "social_guesses",
+    "within_group_means",
+    "final_props"
+  ),
+  envir = globalenv()
+)
 
 gs <- gs_wide(require_estimates(
   "primary/group_specificity",
@@ -54,32 +64,12 @@ h12 <- fit_h12(gs)
 contrasts <- h12$contrasts
 n_real <- sum(!is.na(games$condition))
 
-social_h4 <- social_guess_trials(social_guesses, games, SOCIAL_CONDITIONS)
-p2_listener_social <- listener_trials(
-  trials,
-  games,
-  phase = 2,
-  conditions = SOCIAL_CONDITIONS
-) |>
-  attach_speaker()
-h4_specs <- list(
-  list(
-    name = "H4a",
-    analysis = "h4a",
-    data = social_h4,
-    model = load_fit("h4a", "stats/primary/h4.R"),
-    late = "lateSocialGuess",
-    weights = list(H4a_socialfirst_gt_socialmixed = c(-1, 1))
-  ),
-  list(
-    name = "H4b",
-    analysis = "h4b",
-    data = p2_listener_social,
-    model = load_fit("h4b", "stats/primary/h4.R"),
-    late = "lateClick",
-    weights = list(H4b_socialmixed_gt_socialfirst = c(1, -1))
-  )
-)
+# The two H4 tests as h4.R ran them (h4_specs() in stats/R/contrasts.R), each
+# with the primary fit h4.R saved
+h4 <- lapply(h4_specs(trials, social_guesses, games), function(spec) {
+  spec$model <- load_fit(spec$analysis, "stats/primary/h4.R")
+  spec
+})
 h4_primary_table <- function(spec) {
   contrast_table(
     contrast(emmeans(spec$model, "condition", type = "response"), spec$weights),
@@ -240,7 +230,7 @@ rr_complete <- robustness_rerun(
   "complete nine-player games",
   gs = gs,
   primary_contrasts = contrasts,
-  h4 = h4_specs
+  h4 = h4
 )
 add_rows(rerun_rows(rr_complete, "complete_games"))
 note_restriction(
@@ -381,7 +371,7 @@ rr_three_groups <- robustness_rerun(
   "games with three active groups throughout Phase 2",
   gs = gs,
   primary_contrasts = contrasts,
-  h4 = h4_specs
+  h4 = h4
 )
 add_rows(rerun_rows(rr_three_groups, "three_groups"))
 note_restriction(
@@ -431,7 +421,7 @@ if (n_distinct(gs_roster$activeGroupsMin) < 2) {
       n_games = nrow(h12_roster$data)
     ))
   }
-  for (spec in h4_specs) {
+  for (spec in h4) {
     d <- spec$data |>
       select(-any_of(c("activeGroups", "activeGroupsMin"))) |>
       left_join(roster, by = "gameId") |>
@@ -480,7 +470,7 @@ if (n_distinct(games$tangramSet[!is.na(games$condition)]) < 2) {
   } else {
     cat("\nH1/H2 rerun not possible:", h12_set$note, "\n")
   }
-  for (spec in h4_specs) {
+  for (spec in h4) {
     if (!"tangramSet" %in% names(spec$data)) {
       next
     }
@@ -500,7 +490,7 @@ if (n_distinct(games$tangramSet[!is.na(games$condition)]) < 2) {
 }
 
 # ── Late arrivals ─────────────────────────────────────────────────────────
-for (spec in h4_specs) {
+for (spec in h4) {
   if (!spec$late %in% names(spec$data)) {
     next
   }

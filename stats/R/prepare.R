@@ -19,14 +19,19 @@
 #   condition      factor with levels CONDITION_ORDER, or the subset asked for
 #   inGroupSpeaker factor out_group/in_group, from attach_speaker()
 #
-# `load_tables()` reads every processed table, measure and model input for the
-# active dataset (see use_dataset() in config.R); missing files come back as
-# empty tibbles so a script can test `has_rows(x)` instead of file paths.
+# A script names the tables it reads, `load_tables("games", "trials")`, so its
+# inputs are stated on one line; `table_paths()` says which file of the active
+# dataset (see use_dataset() in config.R) each name is. In the full sample a
+# named table whose file is missing is an error; in any other dataset it comes
+# back as an empty tibble, so a script can test `has_rows(x)` and skip an
+# analysis a trial dataset cannot support.
 #
-# Tests: stats/tests/test_prepare.R, stats/tests/test_accuracy_denominator.R
+# Tests: stats/tests/test_prepare.R, stats/tests/test_accuracy_denominator.R,
+# stats/tests/test_script_inputs.R
 
 # ── Loading ──────────────────────────────────────────────────────────────────
 
+# One CSV as a tibble, or an empty tibble when the file does not exist.
 read_table <- function(name, dir = tables_dir) {
   path <- file.path(dir, name)
   if (!file.exists(path)) {
@@ -40,45 +45,100 @@ read_table <- function(name, dir = tables_dir) {
 
 has_rows <- function(df) is.data.frame(df) && nrow(df) > 0
 
-load_tables <- function() {
-  list(
-    games = read_table("games.csv"),
-    players = read_table("players.csv"),
-    trials = read_table("trials.csv"),
-    messages = read_table("messages.csv"),
-    speaker_utts = read_table(utterances_file),
-    social_guesses = read_table("social_guesses.csv"),
-    # Player records that never played a real game (quiz failures, lobby
-    # timeouts, late arrivals), written by combine_runs.py
-    dropouts = read_table("dropouts.csv"),
-    # The measures: similarities and description properties
-    adjacent_sim = read_table("adjacent_similarities.csv", measures_dir),
-    pairwise_sim = read_table(pairwise_file("sbert"), measures_dir),
-    block_pairwise_sim = read_table(block_pairwise_file("sbert"), measures_dir),
-    # The content-word Jaccard counterparts (same pairs, `similarity` is the
+# The tables a script can load by name, each with the file it is read from.
+table_paths <- function() {
+  c(
+    # The processed tables (preprocessing/preprocessing.py)
+    games = file.path(tables_dir, "games.csv"),
+    players = file.path(tables_dir, "players.csv"),
+    trials = file.path(tables_dir, "trials.csv"),
+    speaker_utts = file.path(tables_dir, utterances_file),
+    social_guesses = file.path(tables_dir, "social_guesses.csv"),
+    # The exit-survey respondents of the real games, with the items typed
+    exit_survey = file.path(tables_dir, "exit_survey.csv"),
+    # The measures (preprocessing/compute_measures.py)
+    adjacent_sim = file.path(measures_dir, "adjacent_similarities.csv"),
+    pairwise_sim = file.path(measures_dir, pairwise_file("sbert")),
+    block_pairwise_sim = file.path(measures_dir, block_pairwise_file("sbert")),
+    # The content-word Jaccard counterpart (same pairs, `similarity` is the
     # Jaccard overlap, NA where a description has no content words), for the
-    # preregistered robustness check; empty when compute_measures.py has not
-    # written them
-    pairwise_sim_jaccard = read_table(pairwise_file("jaccard"), measures_dir),
-    block_pairwise_sim_jaccard = read_table(
-      block_pairwise_file("jaccard"),
-      measures_dir
-    ),
-    phase_change = read_table("phase_change_similarities.csv", measures_dir),
-    desc_props = read_table("description_properties.csv", measures_dir),
-    lex_uniq = read_table("lexical_uniqueness.csv", measures_dir),
+    # preregistered robustness check
+    pairwise_sim_jaccard = file.path(measures_dir, pairwise_file("jaccard")),
+    phase_change = file.path(measures_dir, "phase_change_similarities.csv"),
     # The model inputs (preprocessing/build_model_inputs.py)
-    within_group_means = read_table(
-      "within_group_block_means.csv",
-      model_inputs_dir
+    within_group_means = file.path(
+      model_inputs_dir,
+      "within_group_block_means.csv"
     ),
-    within_group_means_jaccard = read_table(
-      "within_group_block_means_jaccard.csv",
-      model_inputs_dir
+    within_group_means_jaccard = file.path(
+      model_inputs_dir,
+      "within_group_block_means_jaccard.csv"
     ),
-    final_props = read_table("final_phase_properties.csv", model_inputs_dir),
-    ingroup_adv = read_table("ingroup_advantage.csv", model_inputs_dir)
+    final_props = file.path(model_inputs_dir, "final_phase_properties.csv"),
+    ingroup_adv = file.path(model_inputs_dir, "ingroup_advantage.csv")
   )
+}
+
+# The files a named table depends on: its own and, for the filtered
+# utterances, the sidecar and the messages.csv that check_filtered_utterances()
+# (config.R) holds them against. These are the prerequisites the Makefile lists
+# for a script that loads the table; stats/tests/test_script_inputs.R compares
+# the two.
+table_dependencies <- function(name) {
+  path <- unname(table_paths()[name])
+  if (
+    name == "speaker_utts" &&
+      utterances_file == "speaker_utterances_filtered.csv"
+  ) {
+    return(c(
+      path,
+      file.path(
+        tables_dir,
+        c("speaker_utterances_filtered.source.json", "messages.csv")
+      )
+    ))
+  }
+  path
+}
+
+# The named tables as a list, each read from its file in table_paths(). In
+# the full sample (`required`) a table whose file is missing is an error.
+load_tables <- function(
+  ...,
+  paths = table_paths(),
+  required = DATASET == DEFAULT_DATASET
+) {
+  wanted <- c(...)
+  if (length(wanted) == 0) {
+    stop(
+      "load_tables() takes the names of the tables to load, among: ",
+      paste(names(paths), collapse = ", "),
+      call. = FALSE
+    )
+  }
+  unknown <- setdiff(wanted, names(paths))
+  if (length(unknown)) {
+    stop(
+      "load_tables() does not know ",
+      paste(unknown, collapse = ", "),
+      "; table_paths() names ",
+      paste(names(paths), collapse = ", "),
+      call. = FALSE
+    )
+  }
+  absent <- wanted[!file.exists(paths[wanted])]
+  if (length(absent) && required) {
+    stop(
+      "The full sample has no ",
+      paste(basename(paths[absent]), collapse = ", "),
+      ". Build the dataset first (make data, or make measures model-inputs ",
+      "from the processed tables).",
+      call. = FALSE
+    )
+  }
+  lapply(paths[wanted], function(path) {
+    read_table(basename(path), dirname(path))
+  })
 }
 
 # A table processed before a column existed cannot be analyzed; say so rather

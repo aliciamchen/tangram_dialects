@@ -28,7 +28,7 @@ suppressPackageStartupMessages({
   library(lmerTest)
   library(emmeans)
 })
-list2env(load_tables(), envir = globalenv())
+list2env(load_tables("ingroup_adv"), envir = globalenv())
 
 adv <- ingroup_advantage(ingroup_adv, SOCIAL_CONDITIONS)
 if (nrow(adv) < 4 || n_distinct(adv$condition) < 2) {

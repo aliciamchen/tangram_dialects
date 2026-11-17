@@ -601,3 +601,37 @@ local({
     ))
   )
 })
+
+# ── load_tables(): a script names the tables it reads ────────────────────────
+
+local({
+  dir <- tempfile("tables-")
+  dir.create(dir)
+  writeLines(
+    c("gameId,condition", "g1,social_mixed"),
+    file.path(dir, "games.csv")
+  )
+  paths <- c(
+    games = file.path(dir, "games.csv"),
+    trials = file.path(dir, "trials.csv")
+  )
+  fails <- function(expr) inherits(try(expr, silent = TRUE), "try-error")
+
+  # The rule of 2026-11-16 (decisions.md): the full sample has every table, so
+  # a missing one stops the script; a trial dataset may lack one
+  check(
+    "a named table whose file is missing is an error in the full sample",
+    fails(load_tables("games", "trials", paths = paths, required = TRUE))
+  )
+  trial_dataset <- load_tables(
+    "games",
+    "trials",
+    paths = paths,
+    required = FALSE
+  )
+  check(
+    "and an empty table in any other dataset",
+    identical(names(trial_dataset), c("games", "trials")) &&
+      !has_rows(trial_dataset$trials)
+  )
+})

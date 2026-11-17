@@ -18,7 +18,7 @@ suppressPackageStartupMessages({
   library(lmerTest)
   library(emmeans)
 })
-list2env(load_tables(), envir = globalenv())
+list2env(load_tables("final_props"), envir = globalenv())
 
 # The measure ids the estimates tables carry, by the H3C_MEASURES name
 MEASURE_IDS <- c(

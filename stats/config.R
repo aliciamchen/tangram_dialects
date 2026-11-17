@@ -9,9 +9,10 @@
 # write_estimates(); report/inferential.py turns those into the manuscript's
 # macros and report/figures/ draws from them.
 #
-# Usage (at the top of each stats/<family>/<name>.R):
+# Usage (at the top of each stats/<family>/<name>.R), naming the tables the
+# script reads (table_paths() in R/prepare.R lists them):
 #   source(here::here("stats", "config.R"))
-#   tables <- load_tables()
+#   list2env(load_tables("games", "trials"), envir = globalenv())
 
 suppressPackageStartupMessages({
   library(tidyverse)

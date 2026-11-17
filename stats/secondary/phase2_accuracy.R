@@ -25,7 +25,7 @@ suppressPackageStartupMessages({
   library(lme4)
   library(emmeans)
 })
-list2env(load_tables(), envir = globalenv())
+list2env(load_tables("games", "trials"), envir = globalenv())
 
 p2_listener <- listener_trials(trials, games, phase = 2)
 n_cond <- n_distinct(p2_listener$condition)

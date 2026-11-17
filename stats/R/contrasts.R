@@ -271,8 +271,43 @@ H4_FORMULA <- correct ~ condition +
   (1 | speakerId) +
   (1 | target)
 
+# The two H4 tests, each with the Phase 2 data of the two social conditions
+# its model is fit to, the planned contrast as emmeans weights on the
+# conditions in the order of SOCIAL_CONDITIONS (social_mixed, social_first),
+# and the column that flags a late answer on its outcome. h4.R fits H4_FORMULA
+# to `data`; the reruns of robustness.R and the Bayes factors of
+# bayes_factors.R take the data and the contrast from here, so none of them
+# can be on other data than the primary test.
+h4_specs <- function(trials, social_guesses, games) {
+  list(
+    H4a = list(
+      name = "H4a",
+      analysis = "h4a",
+      label = "H4a (social_first > social_mixed)",
+      data = social_guess_trials(social_guesses, games, SOCIAL_CONDITIONS),
+      late = "lateSocialGuess",
+      weights = list(H4a_socialfirst_gt_socialmixed = c(-1, 1))
+    ),
+    H4b = list(
+      name = "H4b",
+      analysis = "h4b",
+      label = "H4b (social_mixed > social_first)",
+      data = listener_trials(
+        trials,
+        games,
+        phase = 2,
+        conditions = SOCIAL_CONDITIONS
+      ) |>
+        attach_speaker(),
+      late = "lateClick",
+      weights = list(H4b_socialmixed_gt_socialfirst = c(1, -1))
+    )
+  )
+}
+
 # One H4 model on the games in `keep_games`, with its contrast next to the
-# primary model's. `spec` is list(name, data, model, weights).
+# primary model's. `spec` is one of h4_specs() with the primary fit added as
+# `model`.
 rerun_h4 <- function(spec, keep_games, label) {
   if (is.null(spec$data) || is.null(spec$model)) {
     cat(sprintf("%s: primary model not available; skipping.\n", spec$name))

@@ -38,7 +38,10 @@
 # refitting.
 
 source(here::here("stats", "config.R"))
-list2env(load_tables(), envir = globalenv())
+list2env(
+  load_tables("games", "pairwise_sim", "pairwise_sim_jaccard"),
+  envir = globalenv()
+)
 
 if (!has_rows(pairwise_sim)) {
   stop("No pairwise similarities; run the measures step first.", call. = FALSE)
@@ -59,7 +62,16 @@ if (nrow(not_estimable) > 0) {
   print(knitr::kable(
     not_estimable |>
       mutate(gameId = substr(gameId, 1, 10)) |>
-      select(condition, gameId, window, n_pairs, n_speakers, n_groups_two_speakers, both_levels, note)
+      select(
+        condition,
+        gameId,
+        window,
+        n_pairs,
+        n_speakers,
+        n_groups_two_speakers,
+        both_levels,
+        note
+      )
   ))
 } else {
   cat("\nEvery game-window is eligible and estimable.\n")
@@ -67,9 +79,15 @@ if (nrow(not_estimable) > 0) {
 gs <- gs_wide(gs_table)
 cat(sprintf(
   "\nGames with both endpoints (H1/H2): %d of %d; with the Phase 1 endpoint (H3a): %d.\n",
-  sum(gs$both_endpoints), nrow(gs), sum(gs$eligible_phase1 %in% TRUE)
+  sum(gs$both_endpoints),
+  nrow(gs),
+  sum(gs$eligible_phase1 %in% TRUE)
 ))
-write_estimates(gs_table, "primary/group_specificity", source = "stats/primary/group_specificity.R")
+write_estimates(
+  gs_table,
+  "primary/group_specificity",
+  source = "stats/primary/group_specificity.R"
+)
 
 # ── Content-word Jaccard, the robustness measure ──────────────────────────
 if (has_rows(pairwise_sim_jaccard)) {
@@ -77,7 +95,8 @@ if (has_rows(pairwise_sim_jaccard)) {
   cat("\nEndpoint pairs with and without a Jaccard similarity:\n")
   print(knitr::kable(coverage, digits = 3))
   write_estimates(
-    coverage, "primary/group_specificity_jaccard_coverage",
+    coverage,
+    "primary/group_specificity_jaccard_coverage",
     source = "stats/primary/group_specificity.R"
   )
   gs_table_jaccard <- game_specificity_table(
@@ -88,26 +107,36 @@ if (has_rows(pairwise_sim_jaccard)) {
   cat("\nEndpoint coverage on the Jaccard table:\n")
   print(knitr::kable(endpoint_coverage_summary(gs_table_jaccard)))
   write_estimates(
-    gs_table_jaccard, "primary/group_specificity_jaccard",
+    gs_table_jaccard,
+    "primary/group_specificity_jaccard",
     source = "stats/primary/group_specificity.R"
   )
 } else {
-  cat("\nNo Jaccard pairwise similarities; the robustness tables are not written.\n")
+  cat(
+    "\nNo Jaccard pairwise similarities; the robustness tables are not written.\n"
+  )
 }
 
 # ── SBERT with description length as a covariate ──────────────────────────
 if (all(c("length1", "length2") %in% names(pairwise_sim))) {
   pw_len <- pairwise_sim |>
-    mutate(lengthDiff = abs(length1 - length2), meanLength = (length1 + length2) / 2)
+    mutate(
+      lengthDiff = abs(length1 - length2),
+      meanLength = (length1 + length2) / 2
+    )
   gs_table_adjusted <- game_specificity_table(
-    pw_len, games,
+    pw_len,
+    games,
     covariates = c("lengthDiff", "meanLength"),
     measure = "sbert_length_adjusted"
   )
   write_estimates(
-    gs_table_adjusted, "primary/group_specificity_length_adjusted",
+    gs_table_adjusted,
+    "primary/group_specificity_length_adjusted",
     source = "stats/primary/group_specificity.R"
   )
 } else {
-  cat("\npairwise_similarities.csv has no length columns; the length-adjusted table is not written.\n")
+  cat(
+    "\npairwise_similarities.csv has no length columns; the length-adjusted table is not written.\n"
+  )
 }
