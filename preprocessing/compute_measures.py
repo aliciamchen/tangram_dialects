@@ -11,13 +11,11 @@ Usage:
 """
 
 import argparse
-import re
 import sys
 from collections import Counter, defaultdict
 from itertools import combinations
 from pathlib import Path
 
-import nltk
 import numpy as np
 import pandas as pd
 
@@ -34,12 +32,7 @@ from preprocessing.dataset_paths import (
     filtered_utterances_status,
     stale_filtered_message,
 )
-
-# NLTK English stopwords for content-word extraction
-nltk.download("stopwords", quiet=True)
-from nltk.corpus import stopwords  # noqa: E402
-
-STOPWORDS = frozenset(stopwords.words("english"))
+from preprocessing.words import content_word_tokens, content_words
 
 
 def compute_embeddings(utterances: pd.DataFrame, model: SentenceTransformer) -> np.ndarray:
@@ -132,18 +125,8 @@ def embedding_similarity(embeddings: np.ndarray, model) -> callable:
     return similarity
 
 
-def content_word_set(text) -> set[str]:
-    """The distinct content words of a description, as the preregistration
-    defines them for H3c and the overlap check: lowercased alphabetic
-    sequences, NLTK English stopwords removed, one-character words dropped,
-    no stemming, repeated tokens counted once."""
-    if not isinstance(text, str):
-        return set()
-    return extract_content_words(text)
-
-
 def jaccard_similarity(row1, row2) -> float:
-    """Jaccard overlap of two descriptions' content-word sets.
+    """Jaccard overlap of two descriptions' content-word sets (preprocessing/words.py).
 
     |A ∩ B| / |A ∪ B|. When either description has no content words the
     overlap is undefined, so the pair is left out of the overlap check (the
@@ -151,8 +134,8 @@ def jaccard_similarity(row1, row2) -> float:
     (so the table lines up with the SBERT one) with NaN similarity, and the
     analysis drops those rows and reports the coverage.
     """
-    words1 = content_word_set(row1.get("utterance"))
-    words2 = content_word_set(row2.get("utterance"))
+    words1 = content_words(row1.get("utterance"))
+    words2 = content_words(row2.get("utterance"))
     if not words1 or not words2:
         return float("nan")
     return len(words1 & words2) / len(words1 | words2)
@@ -394,20 +377,6 @@ def compute_block_pairwise_jaccard(utterances: pd.DataFrame) -> pd.DataFrame:
     return build_block_pairwise_table(utterances, jaccard_similarity)
 
 
-def extract_content_words(text: str) -> set[str]:
-    """Extract non-stopword content words (lowercase, len>1) from text."""
-    words = re.findall(r"[a-z]+", text.lower())
-    return {w for w in words if w not in STOPWORDS and len(w) > 1}
-
-
-def extract_content_word_tokens(text: str) -> list[str]:
-    """Extract content words as a list (preserving duplicates), unlike the set version."""
-    if not isinstance(text, str):
-        return []
-    words = re.findall(r"[a-z]+", text.lower())
-    return [w for w in words if w not in STOPWORDS and len(w) > 1]
-
-
 # Concrete term stems from Boyce et al. 2024 (PNAS), Table S2.
 # Exact keyword list; only adaptation is prefix matching (e.g., "squar"
 # matches "square", "squares"), which is how the preregistration states the
@@ -475,7 +444,7 @@ def compute_description_properties(
     from wordfreq import zipf_frequency
 
     def _compute_row(text):
-        tokens = extract_content_word_tokens(text)
+        tokens = content_word_tokens(text)
         if not tokens:
             return pd.Series(
                 {
@@ -548,7 +517,7 @@ def compute_lexical_uniqueness(
     ):
         all_words: set[str] = set()
         for text in grp_df["utterance"]:
-            all_words.update(extract_content_word_tokens(text))
+            all_words.update(content_word_tokens(text))
         group_words[(game_id, grp, target, int(phase))] = all_words
 
     # How many groups use each word for a tangram in a phase, so that a word is
@@ -559,7 +528,7 @@ def compute_lexical_uniqueness(
 
     rows = []
     for _, row in utterances.iterrows():
-        tokens = extract_content_word_tokens(row["utterance"])
+        tokens = content_word_tokens(row["utterance"])
         if not tokens:
             rows.append(
                 {
@@ -593,54 +562,34 @@ def compute_lexical_uniqueness(
     return out
 
 
-def get_window_utterances(
-    utterances: pd.DataFrame,
-    games: pd.DataFrame,
-    window: str,
-) -> pd.DataFrame:
+# The Phase 2 early window is the phase's first three blocks (blockNum counts
+# from 0). It is descriptive: the endpoint comparisons use the two final windows.
+EARLY_WINDOW_BLOCKS = 3
+
+
+def get_window_utterances(utterances: pd.DataFrame, window: str) -> pd.DataFrame:
+    """The utterances of one analysis window, game by game, each game's rows in the input's order.
+
+    "phase1_final" and "phase2_final" are the final three blocks of a phase,
+    read from the `finalWindow` flag that preprocessing writes on the
+    utterance files (preprocessing.add_final_window()), so the window has one
+    definition. "phase2_early" is the first EARLY_WINDOW_BLOCKS blocks of
+    Phase 2.
     """
-    Filter utterances to a specific time window.
-    - "phase1_final": last 3 blocks of Phase 1
-    - "phase2_final": last 3 blocks of Phase 2
-    """
-    game_blocks = games.set_index("gameId")[["phase1Blocks", "phase2Blocks"]].to_dict("index")
-
-    rows = []
-    for game_id, game_data in utterances.groupby("gameId"):
-        blocks_info = game_blocks.get(game_id, {"phase1Blocks": 6, "phase2Blocks": 6})
-        p1_blocks = int(blocks_info["phase1Blocks"])
-        p2_blocks = int(blocks_info["phase2Blocks"])
-
-        if window == "phase1_final":
-            # Last 3 blocks of Phase 1
-            # blockNum is 0-indexed within phase: 0 to p1_blocks-1
-            min_block = max(0, p1_blocks - 3)
-            filtered = game_data[
-                (game_data["phaseNum"] == 1) &
-                (game_data["blockNum"] >= min_block)
-            ]
-        elif window == "phase2_early":
-            # First 3 blocks of Phase 2
-            filtered = game_data[
-                (game_data["phaseNum"] == 2) &
-                (game_data["blockNum"] < 3)
-            ]
-        elif window == "phase2_final":
-            # Last 3 blocks of Phase 2
-            # blockNum is 0-indexed within phase: 0 to p2_blocks-1
-            min_block = max(0, p2_blocks - 3)
-            filtered = game_data[
-                (game_data["phaseNum"] == 2) &
-                (game_data["blockNum"] >= min_block)
-            ]
-        else:
-            raise ValueError(f"Unknown window: {window}")
-
-        rows.append(filtered)
-
-    if not rows:
-        return pd.DataFrame()
-    return pd.concat(rows, ignore_index=True)
+    if "finalWindow" not in utterances.columns:
+        raise ValueError(
+            "the utterances have no finalWindow column; rerun preprocessing (make process) so it is written"
+        )
+    final = utterances["finalWindow"].astype(bool)
+    if window == "phase1_final":
+        keep = (utterances["phaseNum"] == 1) & final
+    elif window == "phase2_early":
+        keep = (utterances["phaseNum"] == 2) & (utterances["blockNum"] < EARLY_WINDOW_BLOCKS)
+    elif window == "phase2_final":
+        keep = (utterances["phaseNum"] == 2) & final
+    else:
+        raise ValueError(f"Unknown window: {window}")
+    return utterances[keep].sort_values("gameId", kind="stable").reset_index(drop=True)
 
 
 def drop_empty_utterances(utterances: pd.DataFrame) -> pd.DataFrame:
@@ -719,7 +668,7 @@ def main():
     print(f"  {adjacent['simAdjacent'].notna().sum()} adjacent similarity values")
 
     print("Computing pairwise similarities for Phase 1 final window...")
-    p1_utts = get_window_utterances(utterances, games, "phase1_final")
+    p1_utts = get_window_utterances(utterances, "phase1_final")
     if not p1_utts.empty:
         # Re-compute embeddings for just this window subset
         p1_embeddings = model.encode(p1_utts["utterance"].fillna("").tolist())
@@ -732,7 +681,7 @@ def main():
         print("  Phase 1 final: no data")
 
     print("Computing pairwise similarities for Phase 2 early window...")
-    p2e_utts = get_window_utterances(utterances, games, "phase2_early")
+    p2e_utts = get_window_utterances(utterances, "phase2_early")
     if not p2e_utts.empty:
         p2e_embeddings = model.encode(p2e_utts["utterance"].fillna("").tolist())
         pairwise_p2e = compute_pairwise_similarities(
@@ -744,7 +693,7 @@ def main():
         print("  Phase 2 early: no data")
 
     print("Computing pairwise similarities for Phase 2 final window...")
-    p2_utts = get_window_utterances(utterances, games, "phase2_final")
+    p2_utts = get_window_utterances(utterances, "phase2_final")
     if not p2_utts.empty:
         p2_embeddings = model.encode(p2_utts["utterance"].fillna("").tolist())
         pairwise_p2 = compute_pairwise_similarities(

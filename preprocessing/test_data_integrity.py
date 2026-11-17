@@ -3118,6 +3118,23 @@ class TestAnalysisColumns:
             expected = pd.to_numeric(table["blockNum"]) + 1 + offset
             assert (pd.to_numeric(table["gameBlock"]) == expected).all(), f"{name}: gameBlock is off"
 
+    def test_final_window_is_the_last_three_blocks_of_the_phase_as_designed(self, games, speaker_utterances):
+        """`finalWindow` on both utterance files: the block is among the last
+        three of its phase by the game's own block counts, whether or not the
+        game reached the phase's last block."""
+        tables = {"speaker_utterances": speaker_utterances}
+        filtered = TABLES_DIR / FILTERED_UTTERANCES_FILE
+        if filtered.exists():
+            tables["speaker_utterances_filtered"] = pd.read_csv(filtered)
+        blocks = games.set_index("gameId")[["phase1Blocks", "phase2Blocks"]]
+        for name, table in tables.items():
+            assert "finalWindow" in table.columns, f"{name} has no finalWindow column"
+            phase = pd.to_numeric(table["phaseNum"])
+            designed = table["gameId"].map(blocks["phase1Blocks"]).where(phase == 1, table["gameId"].map(blocks["phase2Blocks"]))
+            expected = pd.to_numeric(table["blockNum"]) >= (designed - 3).clip(lower=0)
+            mismatch = _is_true(table["finalWindow"]) != expected
+            assert not mismatch.any(), f"{name}: {int(mismatch.sum())} rows carry the wrong finalWindow"
+
 
 def _technical_exclusions():
     path = INPUTS_DIR / "technical_exclusions.csv"

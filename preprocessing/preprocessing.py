@@ -3,13 +3,15 @@ The analysis-ready tables: from the raw Empirica exports to data/<dataset>/table
 
 Reads the anonymized raw tables combine_runs.py wrote to data/<dataset>/raw/
 and writes games.csv, players.csv, trials.csv, messages.csv,
-speaker_utterances.csv and social_guesses.csv, whose columns data/README.md
-describes. On the way it applies the participant and technical exclusions
-listed at the top of the dataset directory, codes the accuracy outcomes under
-the response-opportunity rule, adds the analysis columns (the condition and
-the 1-indexed block numbers) and codes the attrition facts (who was removed
-and why, which games ran to completion), so that the models, the macros and
-the figures read these facts rather than compute them.
+speaker_utterances.csv, social_guesses.csv and exit_survey.csv, whose columns
+data/README.md describes. On the way it applies the participant and technical
+exclusions listed at the top of the dataset directory, codes the accuracy
+outcomes under the response-opportunity rule, adds the analysis columns (the
+condition and the 1-indexed block numbers), flags the final three blocks of
+each phase on the utterances, codes the attrition facts (who was removed and
+why, which games ran to completion) and types the exit-survey responses, so
+that the models, the macros and the figures read these facts rather than
+compute them.
 
 Usage:
     uv run python -m preprocessing.preprocessing --dataset <name>
@@ -1140,6 +1142,58 @@ def exclude_survey_answers(players: pd.DataFrame, exclusions: pd.DataFrame) -> p
     return players
 
 
+# ── The exit-survey responses ────────────────────────────────────────────────
+#
+# players.csv keeps every player with the survey items as `exitSurvey_*`
+# columns, answered or not. exit_survey.csv is the table the survey tests, the
+# survey macros and the survey figure all read: the respondents only, with the
+# items typed, so that who counts as a respondent and how an answer is read
+# are decided here and nowhere else.
+
+EXIT_SURVEY_FILE = "exit_survey.csv"
+EXIT_SURVEY_KEYS = ["gameId", "playerId", "condition", "originalGroup", "respondent"]
+# The items answered on a number scale or as a number, and the closed
+# questions, whose answers are compared as lower-case text
+SURVEY_NUMERIC_ITEMS = ["groupIdentification", "groupCloseness", "age"]
+SURVEY_CATEGORICAL_ITEMS = ["gender", "education", "understood", "groupLanguage", "feltHuman"]
+
+
+def build_exit_survey(players: pd.DataFrame, games: pd.DataFrame) -> pd.DataFrame:
+    """Build exit_survey.csv: one row per exit-survey respondent of a real game.
+
+    A respondent is a player of a game that has a condition who answered at
+    least one survey item; an excluded participant's answers are already blank
+    (exclude_survey_answers()), so they are not one. The rows follow the order
+    of the players table. The columns are EXIT_SURVEY_KEYS, where `respondent`
+    is "removed" for a player the game removed and "completed" otherwise, then
+    every survey item under its own name (the `exitSurvey_` prefix dropped):
+    SURVEY_NUMERIC_ITEMS as numbers, an answer that is not a number left
+    missing, SURVEY_CATEGORICAL_ITEMS in lower case, and the rest as answered.
+    """
+    prefix = "exitSurvey_"
+    survey_cols = [c for c in players.columns if c.startswith(prefix)]
+    items = [c[len(prefix):] for c in survey_cols]
+    clash = sorted(set(items) & set(EXIT_SURVEY_KEYS))
+    if clash:
+        raise ValueError(f"exit-survey item(s) named like a key column of exit_survey.csv: {clash}")
+    if not survey_cols:
+        return pd.DataFrame(columns=EXIT_SURVEY_KEYS)
+    real = games[games["condition"].notna()][["gameId", "condition"]]
+    df = players.merge(real, on="gameId", how="inner")
+    answered = df[survey_cols].notna() & (df[survey_cols].astype(str) != "")
+    df = df[answered.any(axis=1)].copy()
+    removed = df["removed"].map(lambda v: v in (True, "True", "true", "TRUE")).astype(bool)
+    df["respondent"] = removed.map({True: "removed", False: "completed"})
+    out = df[EXIT_SURVEY_KEYS + survey_cols].rename(columns=dict(zip(survey_cols, items)))
+    for item in SURVEY_NUMERIC_ITEMS:
+        if item in out.columns:
+            out[item] = pd.to_numeric(out[item], errors="coerce")
+    for item in SURVEY_CATEGORICAL_ITEMS:
+        if item in out.columns:
+            out[item] = out[item].map(lambda v: v if pd.isna(v) else str(v).lower())
+    return out.reset_index(drop=True)
+
+
 # ── Analysis columns shared by every observation table ───────────────────────
 
 # The columns every observation table carries so that no consumer joins the
@@ -1229,6 +1283,35 @@ def add_analysis_columns(df: pd.DataFrame, games: pd.DataFrame) -> pd.DataFrame:
     phase1_blocks = pd.to_numeric(out["gameId"].map(by_game["phase1Blocks"]), errors="coerce")
     out["block"] = (block_num + 1).round().astype("Int64")
     out["gameBlock"] = (block_num + 1 + (phase_num == 2) * phase1_blocks).round().astype("Int64")
+    return out
+
+
+# ── The final window of a phase ──────────────────────────────────────────────
+
+# The endpoint analyses read the final three blocks of a phase. Both utterance
+# files carry the flag, so the measures, the descriptive macros and the figures
+# select the window by reading it and none of them counts blocks.
+FINAL_WINDOW_BLOCKS = 3
+
+
+def add_final_window(df: pd.DataFrame, games: pd.DataFrame) -> pd.DataFrame:
+    """Add `finalWindow` to a table with gameId, blockNum and phaseNum.
+
+    True where the row's block is among the last FINAL_WINDOW_BLOCKS of its
+    phase as the game was designed, by the game's own `phase1Blocks` and
+    `phase2Blocks`. The count is the designed one, not the last block the game
+    reached, so a game that stopped early contributes only the blocks of the
+    window that it played. Rows keep their order and index.
+    """
+    out = df.drop(columns=["finalWindow"], errors="ignore").copy()
+    by_game = games.drop_duplicates("gameId").set_index("gameId")
+    block_num = pd.to_numeric(out["blockNum"], errors="coerce")
+    phase_num = pd.to_numeric(out["phaseNum"], errors="coerce")
+    phase1_blocks = pd.to_numeric(out["gameId"].map(by_game["phase1Blocks"]), errors="coerce")
+    phase2_blocks = pd.to_numeric(out["gameId"].map(by_game["phase2Blocks"]), errors="coerce")
+    phase_blocks = phase1_blocks.where(phase_num == 1, phase2_blocks.where(phase_num == 2))
+    first_block = (phase_blocks - FINAL_WINDOW_BLOCKS).clip(lower=0)
+    out["finalWindow"] = (block_num >= first_block).fillna(False).astype(bool)
     return out
 
 
@@ -1511,20 +1594,23 @@ SPEAKER_UTTERANCE_COLUMNS = [
     "condition",
     "block",
     "gameBlock",
+    "finalWindow",
 ]
 
 
 def assemble_speaker_utterances(
-    speaker_msgs: pd.DataFrame, trials: pd.DataFrame
+    speaker_msgs: pd.DataFrame, trials: pd.DataFrame, games: pd.DataFrame
 ) -> pd.DataFrame:
     """One utterance per speaker per round from the given speaker messages.
 
     The messages of a round are joined in timestamp order with ", ", counted
     in words, and given the speaker's group and repetition number from their
-    trial row. This is the one definition of an utterance: `build_speaker_
-    utterances` passes every speaker message, and `filter_nonreferential.
-    build_filtered_utterances` passes only the referential ones, so the two
-    files can differ only in which messages went in.
+    trial row and `finalWindow` from the game's block counts
+    (add_final_window()). This is the one definition of an utterance:
+    `build_speaker_utterances` passes every speaker message, and
+    `filter_nonreferential.build_filtered_utterances` passes only the
+    referential ones, so the two files can differ only in which messages went
+    in.
 
     The grouping keys must be complete. pandas drops NaN keys from a groupby
     by default, which would lose a round's utterance without any trace, so the
@@ -1558,15 +1644,16 @@ def assemble_speaker_utterances(
         right_on=["gameId", "roundId", "playerId"],
         how="left",
     )
+    utterances = add_final_window(utterances, games)
     return utterances[[c for c in SPEAKER_UTTERANCE_COLUMNS if c in utterances.columns]]
 
 
 def build_speaker_utterances(
-    messages: pd.DataFrame, trials: pd.DataFrame
+    messages: pd.DataFrame, trials: pd.DataFrame, games: pd.DataFrame
 ) -> pd.DataFrame:
     """Build speaker_utterances.csv: 1 row per speaker per trial."""
     speaker_msgs = messages[messages["senderRole"] == "speaker"].copy()
-    utterances = assemble_speaker_utterances(speaker_msgs, trials)
+    utterances = assemble_speaker_utterances(speaker_msgs, trials, games)
     return utterances.sort_values(["gameId", "playerId", "blockNum", "target"])
 
 
@@ -1933,7 +2020,7 @@ def main():
     games = add_active_groups_min(games, round_df, trials)
 
     print("Building speaker_utterances.csv...")
-    speaker_utterances = build_speaker_utterances(messages, trials)
+    speaker_utterances = build_speaker_utterances(messages, trials, games)
     speaker_utterances.to_csv(output_dir / "speaker_utterances.csv", index=False)
     print(f"  {len(speaker_utterances)} speaker utterances")
 
@@ -1957,6 +2044,14 @@ def main():
     games = add_completion_columns(games, players)
     games.to_csv(output_dir / "games.csv", index=False)
     print(f"  {len(games)} games written to games.csv, {int(games['completeNine'].sum())} complete with nine players")
+
+    print("Building exit_survey.csv...")
+    exit_survey = build_exit_survey(players, games)
+    exit_survey.to_csv(output_dir / EXIT_SURVEY_FILE, index=False)
+    print(
+        f"  {len(exit_survey)} exit-survey respondents, "
+        f"{int((exit_survey['respondent'] == 'removed').sum())} of them removed players"
+    )
 
     print("Building social_guesses.csv...")
     social_guesses = build_social_guesses(player_round_df, game_df, trials)

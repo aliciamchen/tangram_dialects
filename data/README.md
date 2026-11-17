@@ -6,7 +6,7 @@ Each dataset is a directory `data/<name>/` with the same layout, defined once in
 |---|---|---|
 | `data/<name>/` | by hand | `runs.txt`, the Empirica export timestamps the dataset is built from, and the exclusion and exception files described below |
 | `data/<name>/raw/` | `make data` | The raw Empirica tables, stacked across those exports, with identifying columns removed, and the `manifest.json` that records what went into them |
-| `data/<name>/tables/` | `make data` | The analysis-ready tables described in this file: `games`, `players`, `trials`, `messages`, `speaker_utterances`, `speaker_utterances_filtered`, `social_guesses` and `dropouts` |
+| `data/<name>/tables/` | `make data` | The analysis-ready tables described in this file: `games`, `players`, `exit_survey`, `trials`, `messages`, `speaker_utterances`, `speaker_utterances_filtered`, `social_guesses` and `dropouts` |
 | `data/<name>/classifier/` | `make data` | The message filter's label cache, the record of the model that wrote it, and the author's annotation check |
 | `data/<name>/measures/` | `make data` | The measures computed from the descriptions: the SBERT embeddings, the pairwise and block-by-block similarity tables in sentence-embedding and content-word (Jaccard) versions, each speaker's Phase 1 to Phase 2 similarity, and the per-description properties |
 | `data/<name>/model_inputs/` | `make data` | The aggregated tables the models are fit to |
@@ -24,8 +24,8 @@ trials = pd.read_csv(dirs.tables / "trials.csv", low_memory=False)
 ```
 
 ```r
-source("stats/config.R")   # the paths and constants of the active dataset
-tables <- load_tables()     # the processed tables and the measures, as a named list
+source("stats/config.R")                    # the paths and constants of the active dataset
+tables <- load_tables("games", "trials")    # the tables a script names, as a named list
 ```
 
 Timestamps come from two clocks. The columns recorded in the participant's browser (`selectionRenderedAt`, `tangramSelectedAt`, `clickedAt`, `socialGuessSelectedAt`, `composeStartedAt` and the message `timestamp`) are comparable only within that participant, because browser clocks differ by seconds and occasionally by hours; the response times derived from them (`selectionRt`, `socialGuessRt`, `composeMs`) are within-participant differences and are safe. The columns recorded by the server (`selectionStartedAt`, `selectionEndedAt`, `gameStartTime`, `gameEndTime`) are comparable across everyone.
@@ -118,6 +118,19 @@ One row per player.
 
 The raw user agent, which the client records so a live problem can be debugged against the real browser, is a fingerprinting vector and is stripped at anonymization. The per-event engagement and connection logs stay in `raw/player.csv`; the columns here are their summaries. Players removed at the Phase 1 accuracy check complete both survey pages too.
 
+## exit_survey.csv
+
+One row per exit-survey respondent: a player of a real game who answered at least one survey item, in the order of `players.csv`. `players.csv` keeps the answers as they were given, for every player; this table holds the respondents only, with the answers typed, and it is the one the survey tests, the survey macros and the survey figure read, so that who counts as a respondent is decided in one place. An excluded participant's answers are blank in `players.csv`, so they are not a respondent.
+
+| Column | Description |
+|--------|-------------|
+| `gameId`, `playerId`, `originalGroup` | The game, the respondent and their initial group |
+| `condition` | The game's condition |
+| `respondent` | `completed` for a player who finished the game, `removed` for one the game removed |
+| `groupIdentification`, `groupCloseness`, `age` | The `exitSurvey_` items of those names in `players.csv`, as numbers; an answer that is not a number is empty |
+| `gender`, `education`, `understood`, `groupLanguage`, `feltHuman` | The closed questions, in lower case |
+| `strategy`, `fair`, `feedback`, `nativeLanguage`, `race` | The remaining items, as answered |
+
 ## trials.csv
 
 One row per player per reference-game round. Grouping rows by `gameId`, `roundId` and `currentGroup` recovers every group as it was played, and `speakerId` and `inGroupSpeaker` make each listener's speaker explicit, so the interaction history of a game can be reconstructed from this table alone.
@@ -190,6 +203,7 @@ One row per speaker per round: the speaker's messages of that round joined in ti
 | `utterance` | The joined messages |
 | `uttLength` | Word count of the utterance |
 | `condition`, `block`, `gameBlock` | The game's condition and the round's block numbers, as in `trials.csv` |
+| `finalWindow` | Whether the round is in the final three blocks of its phase, counted from the number of blocks the game was designed to have (`phase1Blocks` and `phase2Blocks` in `games.csv`), so a game that stopped early contributes only the blocks of the window that it played. The endpoint similarity measures, the final-block word counts and the figures that read the end of a phase all select on this column |
 
 ## social_guesses.csv
 

@@ -155,7 +155,8 @@ def test_rounds_with_only_non_referential_messages_are_dropped_not_emptied():
              "roundId": "r2", "repNum": 0, "role": "speaker"},
         ]
     )
-    utterances, n_dropped = build_filtered_utterances(messages, trials)
+    games = pd.DataFrame([{"gameId": "g1", "phase1Blocks": 6, "phase2Blocks": 6}])
+    utterances, n_dropped = build_filtered_utterances(messages, trials, games)
 
     assert n_dropped == 1
     assert utterances["playerId"].tolist() == ["s1"]
@@ -1583,9 +1584,13 @@ def _speaker_trials():
     })
 
 
+def _speaker_games():
+    return pd.DataFrame({"gameId": ["g"], "phase1Blocks": [6], "phase2Blocks": [6]})
+
+
 class TestUtteranceAssembly:
     def test_messages_of_a_round_are_joined_in_timestamp_order(self):
-        out = assemble_speaker_utterances(_speaker_messages(), _speaker_trials())
+        out = assemble_speaker_utterances(_speaker_messages(), _speaker_trials(), _speaker_games())
         assert len(out) == 2
         r1 = out[out["playerId"] == "p1"].iloc[0]
         assert r1["utterance"] == "with ears, a bunny"
@@ -1596,13 +1601,13 @@ class TestUtteranceAssembly:
         msgs = _speaker_messages()
         msgs.loc[2, "tangramSet"] = None
         with pytest.raises(ValueError, match="tangramSet"):
-            assemble_speaker_utterances(msgs, _speaker_trials())
+            assemble_speaker_utterances(msgs, _speaker_trials(), _speaker_games())
 
     def test_filtered_and_unfiltered_files_share_one_definition(self):
         msgs = _speaker_messages()
         msgs["is_referential"] = True
-        unfiltered = build_speaker_utterances(msgs, _speaker_trials())
-        filtered, n_dropped = build_filtered_utterances(msgs, _speaker_trials())
+        unfiltered = build_speaker_utterances(msgs, _speaker_trials(), _speaker_games())
+        filtered, n_dropped = build_filtered_utterances(msgs, _speaker_trials(), _speaker_games())
         assert n_dropped == 0
         key = ["gameId", "playerId", "blockNum", "target"]
         pd.testing.assert_frame_equal(
@@ -1774,6 +1779,65 @@ class TestAnalysisColumns:
         out = preprocessing.add_analysis_columns(df, _games_for_columns())
         assert out["condition"].tolist() == ["social_mixed"] and out["block"].tolist() == [6]
         assert list(out.columns).count("condition") == 1
+
+
+class TestFinalWindow:
+    """`finalWindow`: the last three blocks of a phase as the game was designed."""
+
+    def games(self):
+        return pd.DataFrame({"gameId": ["g1"], "phase1Blocks": [6], "phase2Blocks": [6]})
+
+    def test_the_last_three_blocks_of_each_phase_are_flagged(self):
+        """The preregistered endpoint window: blocks 4 to 6 of a six-block phase (blockNum 3 to 5)."""
+        df = pd.DataFrame({"gameId": "g1", "blockNum": [0, 2, 3, 5, 0, 2, 3, 5], "phaseNum": [1, 1, 1, 1, 2, 2, 2, 2]})
+        out = preprocessing.add_final_window(df, self.games())
+        assert out["finalWindow"].tolist() == [False, False, True, True, False, False, True, True]
+
+    def test_the_window_follows_the_designed_block_count_not_the_last_block_played(self):
+        """The case that had two answers before the flag existed (2026-11-16): a game that stopped
+        after its fourth Phase 2 block has that one block in the window, not blocks two to four."""
+        df = pd.DataFrame({"gameId": "g1", "blockNum": [1, 2, 3], "phaseNum": [2, 2, 2]})
+        assert preprocessing.add_final_window(df, self.games())["finalWindow"].tolist() == [False, False, True]
+
+
+class TestExitSurvey:
+    """exit_survey.csv: the respondents of the real games, with the items typed."""
+
+    def games(self):
+        return pd.DataFrame({"gameId": ["g1", "g2", "g0"], "condition": ["social_mixed", "refer_separated", None]})
+
+    def players(self):
+        # p0 and p1 answered (p1 was removed); p2 answered nothing; p3 answered one item with an empty
+        # string elsewhere; p4 is in a test game without a condition
+        return pd.DataFrame({
+            "gameId": ["g1", "g1", "g1", "g2", "g0"],
+            "playerId": ["p0", "p1", "p2", "p3", "p4"],
+            "originalGroup": ["A", "A", "B", "C", "A"],
+            "removed": [False, True, False, False, False],
+            "exitSurvey_understood": ["Yes", "yes", None, None, "yes"],
+            "exitSurvey_groupIdentification": ["6", 3, None, None, "7"],
+            "exitSurvey_age": ["31", "x", None, None, "50"],
+            "exitSurvey_gender": ["Female", "male", None, None, "male"],
+            "exitSurvey_feedback": ["Fun Game", "", None, "ok", ""],
+        })
+
+    def test_one_row_per_respondent_of_a_real_game_in_player_order(self):
+        survey = preprocessing.build_exit_survey(self.players(), self.games())
+        assert survey["playerId"].tolist() == ["p0", "p1", "p3"], "p2 answered nothing and p4's game has no condition"
+        assert list(survey.columns) == [
+            "gameId", "playerId", "condition", "originalGroup", "respondent",
+            "understood", "groupIdentification", "age", "gender", "feedback",
+        ]
+        assert survey["condition"].tolist() == ["social_mixed", "social_mixed", "refer_separated"]
+        assert survey["respondent"].tolist() == ["completed", "removed", "completed"]
+
+    def test_number_items_are_numbers_and_closed_items_lower_case(self):
+        by = preprocessing.build_exit_survey(self.players(), self.games()).set_index("playerId")
+        assert by.loc["p0", "groupIdentification"] == 6.0 and by.loc["p1", "groupIdentification"] == 3.0
+        assert by.loc["p0", "age"] == 31.0 and pd.isna(by.loc["p1", "age"]), "an answer that is not a number is missing"
+        assert by.loc["p0", "understood"] == "yes" and by.loc["p0", "gender"] == "female"
+        assert by.loc["p0", "feedback"] == "Fun Game", "free text is left as answered"
+        assert pd.isna(by.loc["p3", "understood"]) and pd.isna(by.loc["p3", "age"])
 
 
 class TestCodedOutcomes:

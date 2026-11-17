@@ -433,7 +433,7 @@ def cmd_validate(args):
 
 
 def build_filtered_utterances(
-    messages: pd.DataFrame, trials: pd.DataFrame
+    messages: pd.DataFrame, trials: pd.DataFrame, games: pd.DataFrame
 ) -> tuple[pd.DataFrame, int]:
     """Rebuild speaker utterances from referential messages only.
 
@@ -448,7 +448,7 @@ def build_filtered_utterances(
     """
     speaker = messages[messages["senderRole"] == "speaker"]
     referential = speaker[speaker["is_referential"] == True].copy()
-    utterances = assemble_speaker_utterances(referential, trials)
+    utterances = assemble_speaker_utterances(referential, trials, games)
 
     # Rounds where ALL speaker messages were non-referential have no row in
     # `utterances`; count them so the caller can report how many were dropped.
@@ -546,7 +546,8 @@ def cmd_apply(args):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     trials = pd.read_csv(dirs.tables / "trials.csv")
-    utterances, n_dropped = build_filtered_utterances(messages, trials)
+    games = pd.read_csv(dirs.tables / "games.csv")
+    utterances, n_dropped = build_filtered_utterances(messages, trials, games)
 
     output_path = dirs.tables / FILTERED_UTTERANCES_FILE
     utterances.to_csv(output_path, index=False)
