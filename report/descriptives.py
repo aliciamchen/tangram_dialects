@@ -31,6 +31,7 @@ from preprocessing.dataset_paths import (
 )
 from report.bootstrap import bootstrap_mean
 from report.plot_style import CONDITION_ORDER
+from preprocessing.filter_nonreferential import CLASSIFIED_FILE, attach_labels
 from preprocessing.preprocessing import (
     EXIT_SURVEY_FILE,
     PARTICIPANT_EXCLUSIONS_FILE,
@@ -81,6 +82,7 @@ def load_tables(dirs) -> dict:
     """Every table the descriptives read, as the R model scripts read them."""
     inputs, t, measures, estimates = dirs.data, dirs.tables, dirs.measures, dirs.estimates
     gs_path = estimates / "primary" / "group_specificity.csv"
+    gs_jaccard_path = estimates / "primary" / "group_specificity_jaccard.csv"
     tables = {
         "games": pd.read_csv(t / "games.csv"),
         "players": pd.read_csv(t / "players.csv", low_memory=False),
@@ -97,8 +99,11 @@ def load_tables(dirs) -> dict:
         "phase_change": pd.read_csv(measures / "phase_change_similarities.csv")
         if (measures / "phase_change_similarities.csv").exists() else pd.DataFrame(),
         "gs_by_game": pd.read_csv(gs_path) if gs_path.exists() else pd.DataFrame(),
+        "gs_by_game_jaccard": pd.read_csv(gs_jaccard_path) if gs_jaccard_path.exists() else pd.DataFrame(),
         "ingroup_advantage": pd.read_csv(dirs.model_inputs / "ingroup_advantage.csv")
         if (dirs.model_inputs / "ingroup_advantage.csv").exists() else pd.DataFrame(),
+        "classified": pd.read_csv(dirs.classifier / CLASSIFIED_FILE, low_memory=False)
+        if (dirs.classifier / CLASSIFIED_FILE).exists() else pd.DataFrame(),
     }
     return tables
 
@@ -261,6 +266,71 @@ def response_opportunity_macros(table: pd.DataFrame) -> dict:
     return macros
 
 
+# ── Message classifier and screening flags ───────────────────
+
+
+def classifier_macros(messages: pd.DataFrame, classified: pd.DataFrame) -> dict:
+    """How many speaker messages there are and how many the classifier labeled
+    non-referential, which are the ones left out of the descriptions.
+
+    The labels are joined onto the current messages.csv by `attach_labels`,
+    the join the filter itself uses, so the counts are of the messages the
+    analyses read. Nothing for a dataset without the classifier's labels.
+    """
+    if classified.empty or messages.empty:
+        return {}
+    labeled = in_conditions(attach_labels(messages, classified))
+    speaker = labeled[labeled["senderRole"] == "speaker"]
+    if speaker.empty:
+        return {}
+    removed = int((~speaker["is_referential"].astype(bool)).sum())
+    return {
+        "overviewNSpeakerMessages": fmt_count(len(speaker)),
+        "overviewNNonReferentialMessages": fmt_count(removed),
+        "overviewPctNonReferentialMessages": fmt_stat(100 * removed / len(speaker), 1),
+    }
+
+
+def length_flag_count(players: pd.DataFrame, games: pd.DataFrame) -> int | None:
+    """Players of real games flagged for descriptions that lengthened over
+    Phase 1 (`lengthIncreaseFlag`, coded by preprocessing.flag_length_increase);
+    None for a dataset without the flag."""
+    if "lengthIncreaseFlag" not in players.columns:
+        return None
+    real = players[players["gameId"].isin(games.loc[games["condition"].notna(), "gameId"])]
+    return int(_true(real["lengthIncreaseFlag"]).sum())
+
+
+# ── Reshuffled groups ────────────────────────────────────────
+
+RESHUFFLE_COUNTS = ["reshuffleGroups", "reshuffleTrios", "reshuffleTriosOk", "reshufflePairs"]
+
+
+def reshuffle_macros(trials: pd.DataFrame) -> dict:
+    """The groups the reshuffle formed in Phase 2 of the mixed conditions.
+
+    The server records what each trial's assignment achieved, and trials.csv
+    carries it on every row of the round: the groups formed, the three-person
+    ones, those of them whose speaker had exactly one listener from their own
+    original group, and the two-person ones. The macros are the sums over
+    rounds. Only reshuffled rounds carry the record, so nothing else is
+    counted, and a dataset without the record gets no macro.
+    """
+    if not set(RESHUFFLE_COUNTS) <= set(trials.columns):
+        return {}
+    rounds = in_conditions(trials).dropna(subset=RESHUFFLE_COUNTS).drop_duplicates(["gameId", "roundId"])
+    if rounds.empty:
+        return {}
+    total = rounds[RESHUFFLE_COUNTS].sum()
+    return {
+        "overviewReshuffleNTrials": fmt_count(len(rounds)),
+        "overviewReshuffleNGroups": fmt_count(total["reshuffleGroups"]),
+        "overviewReshuffleNTrios": fmt_count(total["reshuffleTrios"]),
+        "overviewReshuffleNTriosOk": fmt_count(total["reshuffleTriosOk"]),
+        "overviewReshuffleNPairs": fmt_count(total["reshufflePairs"]),
+    }
+
+
 # ── Games, attrition and exclusions by condition ─────────────
 
 
@@ -325,6 +395,10 @@ def overview_macros(t: dict) -> dict:
         by_condition[f"overviewPropNoDescription{cond}"] = fmt_stat(r["prop_without"], 3)
     by_condition.update(condition_count_macros(condition_counts(t)))
     by_condition.update(response_opportunity_macros(response_opportunities(trials, t["social_guesses"])))
+    by_condition.update(classifier_macros(t["messages"], t.get("classified", pd.DataFrame())))
+    flagged = length_flag_count(players, games)
+    if flagged is not None:
+        by_condition["overviewNLengthFlagged"] = flagged
     return by_condition | {
         "overviewNExcludedParticipants": len(t["participant_exclusions"]),
         "overviewNExcludedTrialRows": len(excluded_rows),
@@ -335,6 +409,8 @@ def overview_macros(t: dict) -> dict:
         "overviewNTrials": fmt_count(len(trials)),
         "overviewNMessages": fmt_count(len(t["messages"])),
         "overviewNSpeakerUtts": fmt_count(len(t["speaker_utts"])),
+        "overviewNMessageWords": fmt_count(count_words(t["messages"]["text"])),
+        "overviewNSpeakerUttWords": fmt_count(pd.to_numeric(t["speaker_utts"]["uttLength"], errors="coerce").sum()),
         "overviewNRemoved": int(pa["removed"].sum()),
         "overviewNRemovedNoFault": int(pa["no_fault"].sum()),
         "overviewNGroupsLost": int(ga["lost"].sum()),
@@ -342,9 +418,16 @@ def overview_macros(t: dict) -> dict:
         "overviewNGamesRanToCompletion": int(status["ran_to_completion"].sum()),
         "overviewNDropouts": len(t["dropouts"]),
         **session_minutes_macros(t["players"], t["games"]),
+        **reshuffle_macros(trials),
         "overviewNQuizFailed": quiz_failures(t["dropouts"]),
         "overviewNNoOpportunity": int((~_true(listeners["responseOpportunity"])).sum()),
     }
+
+
+def count_words(texts: pd.Series) -> int:
+    """The words in a column of texts, counted as the pipeline counts a
+    description's `uttLength`: the runs of characters separated by whitespace."""
+    return int(texts.fillna("").astype(str).str.split().str.len().sum())
 
 
 def session_minutes_macros(players: pd.DataFrame, games: pd.DataFrame) -> dict:
@@ -474,6 +557,61 @@ def listener_accuracy_by_speaker_group(ingroup_advantage: pd.DataFrame) -> pd.Da
     return out.sort_values(["condition", "listener_type"]).reset_index(drop=True)
 
 
+def listener_accuracy_at_phase2_ends(trials: pd.DataFrame) -> pd.DataFrame:
+    """Referential accuracy in the first and in the last block of Phase 2 with a
+    speaker from the listener's own original group and from another group, by
+    mixed condition: the mean over listener response opportunities with a
+    game-level bootstrap interval. The rows and the summary are those of the
+    accuracy panel of report/figures/block_trajectories.py, read at the two
+    ends of the phase. The separated condition has no out-group speakers and
+    is not in the table.
+    """
+    cols = ["condition", "listener_type", "block", "accuracy", "lower", "upper", "games", "opportunities"]
+    d = in_conditions(trials)
+    d = d[(d["role"] == "listener") & _true(d["responseOpportunity"])
+          & (pd.to_numeric(d["phaseNum"], errors="coerce") == 2)].copy()
+    d["correct"] = pd.to_numeric(d["correct"], errors="coerce")
+    d = d[d["correct"].notna()]
+    if d.empty:
+        return pd.DataFrame(columns=cols)
+    d["block"] = pd.to_numeric(d["block"]).astype(int)
+    d["in_group"] = _true(d["inGroupSpeaker"])
+    mixed = d.loc[~d["in_group"], "condition"].unique()
+    ends = {"first": d["block"].min(), "last": d["block"].max()}
+    rows = []
+    for cond, part in d[d["condition"].isin(mixed)].groupby("condition", observed=True):
+        for end, block in ends.items():
+            for in_group, label in ((True, "in_group"), (False, "out_group")):
+                cell = part[(part["block"] == block) & (part["in_group"] == in_group)]
+                if cell.empty:
+                    continue
+                est = bootstrap_mean(cell, "correct")
+                rows.append({"condition": cond, "listener_type": label, "block": end, "accuracy": est.mean,
+                             "lower": est.lower, "upper": est.upper, "games": est.n_games, "opportunities": est.n_obs})
+    out = pd.DataFrame(rows, columns=cols)
+    out["condition"] = pd.Categorical(out["condition"], CONDITION_ORDER, ordered=True)
+    return out.sort_values(["condition", "block", "listener_type"]).reset_index(drop=True)
+
+
+def specificity_measure_agreement(gs_by_game: pd.DataFrame, gs_by_game_jaccard: pd.DataFrame) -> dict:
+    """The Pearson correlation between a game's group specificity estimated from
+    the sentence embeddings and from content-word overlap (Jaccard), over the
+    game endpoints estimable on both measures, with their count: the points of
+    report/figures/measure_agreement.py."""
+    if gs_by_game.empty or gs_by_game_jaccard.empty:
+        return {}
+    keys = ["gameId", "window"]
+    sbert = in_conditions(gs_by_game[_true(gs_by_game["estimable"])])[keys + ["coefficient"]]
+    jaccard = in_conditions(gs_by_game_jaccard[_true(gs_by_game_jaccard["estimable"])])[keys + ["coefficient"]]
+    both = sbert.merge(jaccard, on=keys, suffixes=("_sbert", "_jaccard")).dropna()
+    if len(both) < 3:
+        return {}
+    return {
+        "exploratoryGsMeasuresR": fmt_stat(np.corrcoef(both["coefficient_sbert"], both["coefficient_jaccard"])[0, 1], 2),
+        "exploratoryGsMeasuresN": fmt_count(len(both)),
+    }
+
+
 def final_words_by_condition(speaker_utts: pd.DataFrame, phase: int) -> pd.DataFrame:
     """Words per description in the final three blocks of `phase`, averaged within game first, by condition.
 
@@ -544,6 +682,14 @@ def exploratory_macros(t: dict) -> dict:
         macros[f"exploratoryAcc{kind}{cond}Lo"] = fmt_stat(row["lower"])
         macros[f"exploratoryAcc{kind}{cond}Hi"] = fmt_stat(row["upper"])
         macros[f"exploratoryAcc{kind}{cond}Listeners"] = fmt_count(row["listeners"])
+    for _, row in listener_accuracy_at_phase2_ends(trials).iterrows():
+        cond = condition_macro_name(str(row["condition"]))
+        kind = "InGroup" if row["listener_type"] == "in_group" else "OutGroup"
+        end = "FirstBlock" if row["block"] == "first" else "LastBlock"
+        macros[f"exploratoryAcc{kind}{end}{cond}"] = fmt_stat(row["accuracy"])
+        macros[f"exploratoryAcc{kind}{end}{cond}Lo"] = fmt_stat(row["lower"])
+        macros[f"exploratoryAcc{kind}{end}{cond}Hi"] = fmt_stat(row["upper"])
+    macros.update(specificity_measure_agreement(t["gs_by_game"], t.get("gs_by_game_jaccard", pd.DataFrame())))
     macros.update(semantic_drift_macros(t["phase_change"]))
     return macros
 
@@ -556,6 +702,23 @@ def exploratory_macros(t: dict) -> dict:
 # (completed or removed), the Likert items and age as numbers and the closed
 # questions in lower case. The survey tests in stats/ and the survey figure
 # read the same table.
+
+# The answer options of the two closed demographic questions (the option values
+# of client/src/intro-exit/ExitSurvey.jsx) and the macro fragment of each.
+GENDER_OPTIONS = {
+    "female": "Female",
+    "male": "Male",
+    "non-binary": "NonBinary",
+    "other": "Other",
+    "prefer-not-to-say": "NotSaid",
+}
+EDUCATION_OPTIONS = {
+    "less-than-high-school": "LessThanHighSchool",
+    "high-school": "HighSchool",
+    "some-college": "SomeCollege",
+    "bachelors": "Bachelors",
+    "advanced-degree": "AdvancedDegree",
+}
 
 
 def has_field(survey: pd.DataFrame, field: str) -> bool:
@@ -592,10 +755,29 @@ def survey_macros(t: dict) -> dict:
         v = survey[field].dropna()
         return {f"{prefix}N": len(v), f"{prefix}Yes": int((v == "yes").sum()), f"{prefix}PropYes": fmt_stat((v == "yes").mean())}
 
+    def options(prefix, field, names):
+        """How many answered a closed question, and the count and percentage choosing each option."""
+        if not has_field(survey, field):
+            return {}
+        v = survey[field].dropna()
+        unknown = sorted(set(v) - set(names))
+        if unknown:
+            raise SystemExit(f"Error: exit-survey item '{field}' has answers outside its options: {unknown}")
+        out = {f"{prefix}N": len(v)}
+        for value, name in names.items():
+            out[f"{prefix}{name}"] = int((v == value).sum())
+            out[f"{prefix}{name}Pct"] = fmt_stat(100 * (v == value).mean(), 1)
+        return out
+
     macros.update(item("surveyIdentification", "groupIdentification"))
     macros.update(item("surveyCloseness", "groupCloseness"))
     macros.update(yes("surveyGroupLanguage", "groupLanguage"))
     macros.update(item("surveyAge", "age"))
+    if has_field(survey, "age"):
+        age = survey["age"].dropna()
+        macros.update({"surveyAgeMin": fmt_count(age.min()), "surveyAgeMax": fmt_count(age.max())})
+    macros.update(options("surveyGender", "gender", GENDER_OPTIONS))
+    macros.update(options("surveyEducation", "education", EDUCATION_OPTIONS))
     if has_field(survey, "feltHuman"):
         fh = survey[survey["feltHuman"].notna()]
         macros.update({

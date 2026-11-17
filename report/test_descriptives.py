@@ -10,10 +10,14 @@ Run with:
 import numpy as np
 import pandas as pd
 
+import pytest
+
 from preprocessing.preprocessing import build_exit_survey
 from report.descriptives import (
+    classifier_macros,
     condition_count_macros,
     condition_counts,
+    count_words,
     description_coverage,
     description_coverage_by_condition,
     endpoint_macros,
@@ -21,14 +25,19 @@ from report.descriptives import (
     final_words_by_condition,
     game_status,
     group_attrition,
+    length_flag_count,
+    listener_accuracy_at_phase2_ends,
     listener_accuracy_by_speaker_group,
     phase1_final_words_by_condition,
     phase1_specificity_by_condition,
     phase_specificity_change_by_condition,
     player_attrition,
     response_opportunities,
+    reshuffle_macros,
     response_opportunity_macros,
     session_minutes_macros,
+    specificity_measure_agreement,
+    survey_macros,
 )
 
 # The attrition columns are the pipeline's (preprocessing.add_removal_columns and
@@ -265,6 +274,48 @@ def test_listener_accuracy_by_speaker_group_averages_listeners_with_game_interva
     assert list(out["condition"].astype(str).unique()) == ["social_mixed"]
 
 
+def test_listener_accuracy_at_phase2_ends_reads_the_first_and_last_block_of_the_mixed_conditions():
+    # Two refer_mixed games over Phase 2 blocks 1 to 3 and a refer_separated game,
+    # whose speakers are all in-group; then the rows the summary leaves out: a
+    # middle block, a Phase 1 trial, a listener with no opportunity and a speaker
+    rows = [
+        ("g1", "refer_mixed", "listener", 2, 1, True, True, 1), ("g1", "refer_mixed", "listener", 2, 1, False, True, 0),
+        ("g2", "refer_mixed", "listener", 2, 1, True, True, 0), ("g2", "refer_mixed", "listener", 2, 1, False, True, 0),
+        ("g1", "refer_mixed", "listener", 2, 3, True, True, 1), ("g1", "refer_mixed", "listener", 2, 3, False, True, 1),
+        ("g2", "refer_mixed", "listener", 2, 3, True, True, 1), ("g2", "refer_mixed", "listener", 2, 3, False, True, 0),
+        ("g3", "refer_separated", "listener", 2, 1, True, True, 1), ("g3", "refer_separated", "listener", 2, 3, True, True, 1),
+        ("g1", "refer_mixed", "listener", 2, 2, False, True, 1),
+        ("g1", "refer_mixed", "listener", 1, 1, True, True, 0),
+        ("g1", "refer_mixed", "listener", 2, 1, False, False, np.nan),
+        ("g1", "refer_mixed", "speaker", 2, 1, True, False, np.nan),
+    ]
+    trials = pd.DataFrame(rows, columns=["gameId", "condition", "role", "phaseNum", "block", "inGroupSpeaker",
+                                         "responseOpportunity", "correct"])
+    out = listener_accuracy_at_phase2_ends(trials)
+    by = out.set_index([out["condition"].astype(str), "block", "listener_type"])
+    assert by.loc[("refer_mixed", "first", "in_group"), "accuracy"] == 0.5
+    assert by.loc[("refer_mixed", "first", "out_group"), "accuracy"] == 0.0, "the listener without an opportunity is not a miss"
+    assert by.loc[("refer_mixed", "last", "in_group"), "accuracy"] == 1.0
+    assert by.loc[("refer_mixed", "last", "out_group"), "accuracy"] == 0.5
+    assert by.loc[("refer_mixed", "first", "in_group"), "games"] == 2
+    assert len(out) == 4, "the condition without out-group speakers and the middle block are left out"
+    assert listener_accuracy_at_phase2_ends(trials[trials["phaseNum"] == 1]).empty
+
+
+def test_specificity_measure_agreement_correlates_the_endpoints_estimable_on_both_measures():
+    index = {"gameId": ["g1", "g1", "g2", "g2"], "condition": ["refer_mixed"] * 2 + ["social_mixed"] * 2,
+             "window": ["phase1_final", "phase2_final"] * 2}
+    sbert = pd.DataFrame({**index, "coefficient": [0.1, 0.2, 0.3, 0.9], "estimable": [True, True, True, False]})
+    jaccard = pd.DataFrame({**index, "coefficient": [0.2, 0.4, 0.6, 0.1], "estimable": [True] * 4})
+    out = specificity_measure_agreement(sbert, jaccard)
+    assert out == {"exploratoryGsMeasuresR": "1.00", "exploratoryGsMeasuresN": "3"}, "the inestimable endpoint is left out"
+    assert specificity_measure_agreement(sbert, pd.DataFrame()) == {}
+
+
+def test_count_words_counts_whitespace_separated_runs():
+    assert count_words(pd.Series(["a rooster head", "  witch ", None, ""])) == 4
+
+
 def test_final_words_by_condition_takes_each_phase_separately():
     utts = pd.DataFrame(
         {
@@ -308,3 +359,57 @@ def test_session_minutes_macros_take_real_games_only():
     assert out["overviewMinutesMedian"] == "40"
     assert float(out["overviewMinutesLowerDecile"]) < float(out["overviewMinutesMedian"]) < float(out["overviewMinutesUpperDecile"])
     assert session_minutes_macros(players.drop(columns=["minutesSpent"]), GAMES) == {}
+
+
+def test_survey_macros_count_each_demographic_option():
+    # The respondents of real games are p0, p1, p3 and p8; p9 is in the test game
+    players = PLAYERS.assign(
+        exitSurvey_gender=["Female", "male", None, "female", None, None, None, None, "non-binary", "male"],
+    )
+    out = survey_macros({"games": GAMES, "players": players, "exit_survey": build_exit_survey(players, GAMES)})
+    assert out["surveyGenderN"] == 4 and out["surveyGenderFemale"] == 2 and out["surveyGenderFemalePct"] == "50.0"
+    assert out["surveyGenderMale"] == 1 and out["surveyGenderNonBinary"] == 1
+    assert out["surveyGenderOther"] == 0 and out["surveyGenderNotSaid"] == 0, "an option nobody chose is written as 0"
+    assert out["surveyAgeMin"] == "25" and out["surveyAgeMax"] == "40"
+    assert "surveyEducationN" not in out, "an item the dataset lacks contributes no macro"
+    unknown = players.assign(exitSurvey_gender=["robot"] + list(players["exitSurvey_gender"][1:]))
+    with pytest.raises(SystemExit):
+        survey_macros({"games": GAMES, "players": unknown, "exit_survey": build_exit_survey(unknown, GAMES)})
+
+
+def test_classifier_macros_count_the_speaker_messages_left_out():
+    messages = pd.DataFrame({
+        "gameId": ["g1"] * 3, "roundId": ["r1"] * 3, "senderId": ["a", "a", "b"], "timestamp": [1, 2, 3],
+        "text": ["a bird", "thanks", "the bird?"], "senderRole": ["speaker", "speaker", "listener"],
+        "condition": ["refer_mixed"] * 3,
+    })
+    classified = messages.iloc[:2].assign(is_referential=[True, False], llm_label=["R", "NR"])
+    out = classifier_macros(messages, classified)
+    assert out["overviewNSpeakerMessages"] == "2", "listener messages are never classified"
+    assert out["overviewNNonReferentialMessages"] == "1" and out["overviewPctNonReferentialMessages"] == "50.0"
+    assert classifier_macros(messages, pd.DataFrame()) == {}
+
+
+def test_length_flag_count_takes_real_games_only():
+    players = PLAYERS.assign(lengthIncreaseFlag=[True, False, False, True, False, False, False, False, False, True])
+    assert length_flag_count(players, GAMES) == 2, "the flagged player of the test game is left out"
+    assert length_flag_count(PLAYERS, GAMES) is None
+
+
+def test_reshuffle_macros_count_each_reshuffled_round_once():
+    # Two reshuffled rounds, three rows each (a full one and one with a pair),
+    # a round that was not reshuffled and a test game's round
+    trials = pd.DataFrame({
+        "gameId": ["g1"] * 3 + ["g1"] * 3 + ["g2"] + ["g0"],
+        "roundId": ["r1"] * 3 + ["r2"] * 3 + ["r3"] + ["r4"],
+        "condition": ["social_mixed"] * 6 + ["refer_separated"] + [None],
+        "reshuffleGroups": [3] * 3 + [3] * 3 + [np.nan] + [3],
+        "reshuffleTrios": [3] * 3 + [2] * 3 + [np.nan] + [3],
+        "reshuffleTriosOk": [3] * 3 + [2] * 3 + [np.nan] + [3],
+        "reshufflePairs": [0] * 3 + [1] * 3 + [np.nan] + [0],
+    })
+    out = reshuffle_macros(trials)
+    assert out["overviewReshuffleNTrials"] == "2", "the unshuffled round and the test game are left out"
+    assert out["overviewReshuffleNGroups"] == "6" and out["overviewReshuffleNPairs"] == "1"
+    assert out["overviewReshuffleNTrios"] == "5" and out["overviewReshuffleNTriosOk"] == "5"
+    assert reshuffle_macros(trials.drop(columns=["reshufflePairs"])) == {}
