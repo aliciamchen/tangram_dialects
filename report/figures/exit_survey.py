@@ -7,7 +7,7 @@ the line. Feeling part of the
 group piles up at 7 in every condition and closeness spreads more; neither
 differs by condition, so mixing did not weaken group feeling. The respondents
 are every player who answered the survey, those removed before the end
-included, as the survey macros count them.
+included, as the survey macros count them (the pipeline's exit_survey.csv).
 
 Each panel's y axis is the question as the survey asked it, with the scale's
 two ends named at 1 and 7. Players in the mixed conditions were asked about
@@ -26,7 +26,7 @@ import textwrap
 
 import pandas as pd
 
-from report.descriptives import exit_survey_responses
+from preprocessing.preprocessing import EXIT_SURVEY_FILE
 from report.figures._common import (
     PROJECT_ROOT,
     condition_summary,
@@ -65,7 +65,7 @@ def _check_wording() -> None:
 
 def data(dirs) -> pd.DataFrame:
     _check_wording()
-    survey = in_conditions(exit_survey_responses(read_table(dirs, "players.csv"), read_table(dirs, "games.csv")))
+    survey = in_conditions(read_table(dirs, EXIT_SURVEY_FILE))
     frames = []
     for panel, (field, _) in ITEMS.items():
         part = survey.assign(value=numeric(survey[field])).dropna(subset=["value"])

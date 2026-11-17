@@ -10,13 +10,13 @@ Run with:
 import numpy as np
 import pandas as pd
 
+from preprocessing.preprocessing import build_exit_survey
 from report.descriptives import (
     condition_count_macros,
     condition_counts,
     description_coverage,
     description_coverage_by_condition,
     endpoint_macros,
-    exit_survey_responses,
     felt_human_flags,
     final_words_by_condition,
     game_status,
@@ -205,22 +205,20 @@ def test_phase1_specificity_and_words_by_condition_follow_the_condition_order():
             "condition": ["social_first"] * 4 + ["refer_mixed"] * 2,
             "phaseNum": [1, 1, 1, 2, 1, 1],
             "blockNum": [0, 3, 5, 0, 4, 5],
+            "finalWindow": [False, True, True, False, True, True],
             "uttLength": [10, 6, 4, 1, 3, 5],
         }
     )
     words = phase1_final_words_by_condition(utts)
     words = words.set_index(words["condition"].astype(str))
-    assert words.loc["social_first", "mean_words"] == 5.0, "blocks 3 and 5 are within three of the game's last block"
+    assert words.loc["social_first", "mean_words"] == 5.0, "blocks 3 and 5 are in the pipeline's final window"
     assert words.loc["refer_mixed", "mean_words"] == 4.0
 
 
-def test_exit_survey_responses_recode_and_flag_as_the_r_helpers_do():
-    survey = exit_survey_responses(PLAYERS, GAMES)
+def test_felt_human_flags_count_games_and_groups_from_the_pipelines_survey_table():
+    # The respondents and their typed answers are the pipeline's (tested in preprocessing/test_preprocessing.py)
+    survey = build_exit_survey(PLAYERS, GAMES)
     assert set(survey["playerId"]) == {"p0", "p1", "p3", "p8"}, "respondents of real games with any answer"
-    by = survey.set_index("playerId")
-    assert by.loc["p0", "respondent"] == "completed" and by.loc["p1", "respondent"] == "removed"
-    assert by.loc["p8", "understood"] == "yes" and by.loc["p3", "groupIdentification"] == 7.0
-    assert pd.isna(by.loc["p1", "age"]) and by.loc["p0", "age"] == 31.0
     assert len(felt_human_flags(survey)) == 2 and len(felt_human_flags(survey, level="group")) == 2
 
 
@@ -274,6 +272,7 @@ def test_final_words_by_condition_takes_each_phase_separately():
             "condition": ["social_first"] * 5,
             "phaseNum": [1, 1, 2, 2, 2],
             "blockNum": [4, 5, 0, 1, 5],
+            "finalWindow": [True, True, False, False, True],
             "uttLength": [6, 4, 10, 8, 2],
         }
     )
@@ -282,8 +281,24 @@ def test_final_words_by_condition_takes_each_phase_separately():
     p2 = final_words_by_condition(utts, phase=2)
     p2 = p2.set_index(p2["condition"].astype(str))
     assert p1.loc["social_first", "mean_words"] == 5.0
-    assert p2.loc["social_first", "mean_words"] == 2.0, "Phase 2 blocks 0 and 1 are more than two before block 5"
+    assert p2.loc["social_first", "mean_words"] == 2.0, "Phase 2 blocks 0 and 1 are outside the final window"
     assert phase1_final_words_by_condition(utts).equals(final_words_by_condition(utts, phase=1))
+
+
+def test_final_words_read_the_window_from_the_pipeline_not_from_the_last_block_played():
+    """A game that stopped after its fourth Phase 2 block has that block in the window, not its last three blocks."""
+    utts = pd.DataFrame(
+        {
+            "gameId": ["g1"] * 3,
+            "condition": ["refer_separated"] * 3,
+            "phaseNum": [2, 2, 2],
+            "blockNum": [1, 2, 3],
+            "finalWindow": ["False", "False", "True"],
+            "uttLength": [9, 7, 2],
+        }
+    )
+    out = final_words_by_condition(utts, phase=2)
+    assert out["mean_words"].tolist() == [2.0] and out["games"].tolist() == [1]
 
 
 def test_session_minutes_macros_take_real_games_only():

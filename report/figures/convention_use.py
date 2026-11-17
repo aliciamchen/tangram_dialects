@@ -21,7 +21,7 @@ interval.
 Beside them, one panel for all four conditions (keyed borrowed_per_game): each
 game's share of descriptions using another group's words, alone or with its
 own group's (the both and other categories), over the final three blocks
-(LATE_BLOCKS), a point per game in a column per condition under the
+(the utterances' `finalWindow` flag), a point per game in a column per condition under the
 condition's mean as a black line and its bootstrap interval over games as an
 outlined box. The panels are placed by hand in the article, carry no letter or
 title, and leave the game counts and the block window to the caption."""
@@ -32,7 +32,6 @@ import pandas as pd
 
 from report.figures._common import (
     GAME_COLUMN_SEED,
-    LATE_BLOCKS,
     USES,
     code_convention_use,
     condition_summary,
@@ -69,7 +68,7 @@ def data(dirs) -> pd.DataFrame:
                 "condition": condition, "gameBlock": int(block), "use": use, "value": float(shares.get(use, 0.0)),
                 "n_obs": len(part), "n_games": part["gameId"].nunique(), "level": "condition", "panel": "shares",
             })
-    late = coded[coded["gameBlock"].between(*LATE_BLOCKS)].assign(borrowed=lambda d: d["use"].isin(BORROWED).astype(float))
+    late = coded[coded["finalWindow"]].assign(borrowed=lambda d: d["use"].isin(BORROWED).astype(float))
     per_game = [game_means(late, "borrowed"), condition_summary(late, "borrowed")]
     return pd.concat([pd.DataFrame(rows), *(t.assign(panel="borrowed") for t in per_game)], ignore_index=True)
 

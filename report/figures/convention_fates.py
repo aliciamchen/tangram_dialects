@@ -12,7 +12,8 @@ A group's convention for a tangram is its convention words
 final Phase 1 descriptions of the tangram, minus any word another group of
 the game shares by the same rule), and a description uses the convention when
 it carries any of those words, as code_convention_use() codes it. The fate is
-read over LATE_BLOCKS, the final three blocks of Phase 2, in which each
+read over the final three blocks of Phase 2 (the utterances' `finalWindow`
+flag, the window of the endpoint measures), in which each
 tangram is described about nine times, about three by the group's own members
 and six by the others': "used" means at least one description there by a
 member of the group in question. A convention counts only in a game whose
@@ -36,7 +37,6 @@ from __future__ import annotations
 import pandas as pd
 
 from report.figures._common import (
-    LATE_BLOCKS,
     content_words,
     convention_vocabulary,
     panel_figure,
@@ -70,7 +70,7 @@ MARGINS = dict(left=0.62, right=2.0, top=0.12, bottom=0.42)  # the y label, the 
 def data(dirs) -> pd.DataFrame:
     utterances = speaker_utterances(dirs)
     vocabulary = convention_vocabulary(utterances)
-    late = utterances[(utterances["phaseNum"] == 2) & utterances["gameBlock"].between(*LATE_BLOCKS)].copy()
+    late = utterances[(utterances["phaseNum"] == 2) & utterances["finalWindow"]].copy()
     late["words"] = late["utterance"].map(content_words)
     rows = []
     for (game, group, target), words in vocabulary.items():

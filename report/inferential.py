@@ -25,7 +25,10 @@ contributes no macro, which makes an unavailable number fail loudly in LaTeX
 rather than read as a result. A Bayes factor whose computation raised a
 warning (a sampling problem, or a posterior density at zero that the kernel
 estimate and the normal approximation disagree on) is likewise left out,
-with a note, because the number is not reliable whatever its size. Formatting
+with a note, because the number is not reliable whatever its size. For the
+full sample, a macro the existing file defines cannot disappear this way
+unnoticed: the writer stops unless it is run with `--allow-removed`
+(report/stats_tex.py). Formatting
 every number here, after the models have run, means a change of rounding or
 wording costs seconds rather than a refit; the formatting rules themselves are
 in report/stats_tex.py.
@@ -45,6 +48,7 @@ import pandas as pd
 
 from preprocessing.dataset_paths import add_dataset_argument, dataset_dirs
 from report.stats_tex import (
+    add_allow_removed_argument,
     check_unique_names,
     condition_macro_name,
     fmt_bf,
@@ -52,7 +56,7 @@ from report.stats_tex import (
     fmt_pval,
     fmt_stat,
     stats_file,
-    write_stats_tex,
+    write_stats_files,
 )
 
 SOURCE = "report/inferential.py"
@@ -407,6 +411,7 @@ FAMILIES = {"checks": checks_macros, "primary": primary_macros, "secondary": sec
 def main():
     parser = argparse.ArgumentParser(description="Write the inferential macros of one dataset from its estimates tables")
     add_dataset_argument(parser)
+    add_allow_removed_argument(parser)
     args = parser.parse_args()
     dirs = dataset_dirs(args.dataset)
     if not dirs.estimates.is_dir():
@@ -414,8 +419,8 @@ def main():
     if dirs.name != "full":
         print(f"Dataset '{dirs.name}' is not the full sample: the macros written to {dirs.macros} are not results.")
     est = Estimates(dirs.estimates)
-    for family, build in FAMILIES.items():
-        write_stats_tex(build(est), stats_file(family, dirs), source=SOURCE, dataset=dirs.name)
+    files = {stats_file(family, dirs): build(est) for family, build in FAMILIES.items()}
+    write_stats_files(files, source=SOURCE, dataset=dirs.name, allow_removed=args.allow_removed)
     duplicates = check_unique_names(dirs.macros)
     if duplicates:
         raise SystemExit(f"Error: macro names defined in more than one stats file: {duplicates}")

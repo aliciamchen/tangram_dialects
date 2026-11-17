@@ -22,8 +22,23 @@ from report.stats_tex import (
     fmt_stat,
     stats_file,
     stats_tex_names,
+    write_stats_files,
     write_stats_tex,
 )
+
+
+def test_the_full_sample_does_not_drop_a_macro_unless_told_to(tmp_path):
+    """The rule of 2026-11-16 (decisions.md): for the full sample a writer that would drop a macro the
+    existing file defines writes none of its files, and `--allow-removed` is the way to drop one."""
+    files = {tmp_path / "a.tex": {"kept": 1, "gone": 2}, tmp_path / "b.tex": {"other": 1}}
+    write_stats_files(files, source="test", dataset="full")
+    before = {path.name: path.read_text() for path in tmp_path.glob("*.tex")}
+    without = {tmp_path / "b.tex": {"other": 5}, tmp_path / "a.tex": {"kept": 1}}
+    with pytest.raises(SystemExit, match="a.tex: gone"):
+        write_stats_files(without, source="test", dataset="full")
+    assert {path.name: path.read_text() for path in tmp_path.glob("*.tex")} == before, "neither file is rewritten"
+    write_stats_files(without, source="test", dataset="full", allow_removed=True)
+    assert stats_tex_names(tmp_path / "a.tex") == ["kept"]
 
 
 def test_write_stats_tex_writes_the_header_the_provenance_and_the_macros(tmp_path):

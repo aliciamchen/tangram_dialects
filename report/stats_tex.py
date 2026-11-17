@@ -12,12 +12,15 @@ same line format, the same rule that a macro name is letters only (so
 `\\primaryNGames` is fine and `\\primaryN2` is not) and the same refusal of
 duplicate names. `check_unique_names()` reads every file in a stats
 directory, whoever wrote it, and reports a name defined in more than one
-file, because main.tex reads all of them together.
+file, because main.tex reads all of them together. For the full sample a
+writer also refuses to drop a macro the existing file defines unless it is run
+with `--allow-removed` (`refuse_removed_names()`), so a renamed estimates row
+cannot remove a number from the manuscript without anyone noticing.
 
 Usage:
-    from report.stats_tex import fmt_stat, stats_file, write_stats_tex
+    from report.stats_tex import fmt_stat, stats_file, write_stats_files
     macros = {"overviewNGames": 120, "overviewAccuracy": fmt_stat(0.8123)}
-    write_stats_tex(macros, stats_file("overview", dirs), source="report/descriptives.py", dataset=dirs.name)
+    write_stats_files({stats_file("overview", dirs): macros}, source="report/descriptives.py", dataset=dirs.name)
 
 Tests: report/test_stats_tex.py
 """
@@ -29,7 +32,7 @@ import re
 from collections.abc import Mapping
 from pathlib import Path
 
-from preprocessing.dataset_paths import dataset_dirs
+from preprocessing.dataset_paths import DEFAULT_DATASET, dataset_dirs
 from preprocessing.provenance import git_commit
 
 NAME_PATTERN = re.compile(r"^[A-Za-z]+$")
@@ -57,6 +60,58 @@ def _is_missing(x) -> bool:
         return False
 
 
+def removed_names(macros: Mapping[str, object], path: Path | str) -> list[str]:
+    """The macro names the file at `path` defines that `macros` no longer has, in file order."""
+    path = Path(path)
+    if not path.exists():
+        return []
+    return [name for name in stats_tex_names(path) if name not in macros]
+
+
+def refuse_removed_names(files: Mapping[Path, Mapping[str, object]], dataset: str | None) -> None:
+    """Stop when writing `files` would drop a macro from the full sample's results.
+
+    A macro disappears when the estimates row or the table it is written from
+    is missing, or when a name changed on either side, and the writers treat a
+    missing row as nothing to write. For a trial dataset that is the point;
+    for the full sample it would remove a number the manuscript may quote
+    without any error, so a name the existing file defines has to be dropped
+    on purpose, with `--allow-removed`.
+    """
+    if dataset != DEFAULT_DATASET:
+        return
+    lost = {Path(path).name: removed_names(macros, path) for path, macros in files.items()}
+    lost = {name: names for name, names in lost.items() if names}
+    if lost:
+        listing = "; ".join(f"{name}: {', '.join(names)}" for name, names in lost.items())
+        raise SystemExit(
+            f"Error: nothing was written, because the new macros would drop names the current files define ({listing}). "
+            "A macro disappears when its estimates row or table is missing or when a name changed. If the removal is "
+            "intended, rerun with --allow-removed (make macros MACRO_ARGS=--allow-removed)."
+        )
+
+
+def add_allow_removed_argument(parser) -> None:
+    """Add the writers' shared --allow-removed option to an argparse parser."""
+    parser.add_argument(
+        "--allow-removed",
+        action="store_true",
+        help="write the full sample's macro files even when a macro the current files define is no longer written",
+    )
+
+
+def write_stats_files(
+    files: Mapping[Path, Mapping[str, object]],
+    source: str,
+    dataset: str | None = None,
+    allow_removed: bool = False,
+) -> list[Path]:
+    """Write one writer's stats files together: all of them, or none when one would drop a macro (refuse_removed_names())."""
+    if not allow_removed:
+        refuse_removed_names(files, dataset)
+    return [write_stats_tex(macros, path, source=source, dataset=dataset) for path, macros in files.items()]
+
+
 def write_stats_tex(
     macros: Mapping[str, object],
     path: Path | str,
@@ -67,7 +122,9 @@ def write_stats_tex(
 
     Every name must be letters only and appear once; a missing value (None or
     NaN) is written as an empty macro. The second header line records the git
-    commit of the working tree and, when given, the dataset.
+    commit of the working tree and, when given, the dataset. The two writers
+    call this through write_stats_files(), which first refuses to drop a macro
+    from the full sample's files.
     """
     names = list(macros)
     bad = [n for n in names if not isinstance(n, str) or not NAME_PATTERN.match(n)]

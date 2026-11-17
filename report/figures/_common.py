@@ -58,7 +58,9 @@ And the restriction under which the SI draws the main panels again
     contrast_estimates(dirs, table, ...) a preregistered test's estimates, the
                                          rerun's under a restriction
 
-And the descriptive codings of the Phase 1 conventions, which no model uses:
+And the descriptive codings of the Phase 1 conventions, which no model uses
+(a description's content words are those of preprocessing/words.py, the
+definition the measures use):
 
     phase1_conventions(utterances, e)    each group's convention for a tangram
                                          as the unit mean embedding of its
@@ -94,12 +96,12 @@ from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import nltk
 import numpy as np
 import pandas as pd
 from matplotlib import transforms
 from matplotlib.patches import Polygon, Rectangle
 
+from preprocessing.words import content_words
 from report.bootstrap import bootstrap_mean
 from report.descriptives import utterances_file
 from report.inferential import read_estimates
@@ -144,7 +146,6 @@ SOCIAL_CONDITIONS = ["social_mixed", "social_first"]  # the conditions whose lis
 SPEAKERS = ["in_group", "out_group"]  # a Phase 2 speaker from the listener's original group, or from another
 SPEAKER_LINESTYLES = {"in_group": "-", "out_group": BETWEEN_LINESTYLE}
 GUESS_CHANCE = 0.5  # a listener answering at random says "same group" on half the trials
-LATE_BLOCKS = (10, 12)  # the final three blocks of Phase 2
 GAME_COLUMN_SEED = 20261101  # the jitter of a column of game points, seeded so that the PDF reproduces
 
 
@@ -228,11 +229,16 @@ def listener_trials(dirs, phase: int | None = None) -> pd.DataFrame:
 
 
 def speaker_utterances(dirs) -> pd.DataFrame:
-    """The utterance table the models read (the filtered one when it is current)."""
+    """The utterance table the models read (the filtered one when it is current).
+
+    `finalWindow` is the pipeline's flag for the final three blocks of a
+    phase, the window of the endpoint measures; a figure that reads those
+    blocks selects on it and counts no blocks of its own."""
     u = read_table(dirs, utterances_file(dirs.tables))
     for col in ("phaseNum", "gameBlock", "block"):
         u[col] = numeric(u[col]).astype(int)
     u["uttLength"] = numeric(u["uttLength"])
+    u["finalWindow"] = is_true(u["finalWindow"]).astype(bool)
     return in_conditions(u)
 
 
@@ -714,21 +720,6 @@ def phase1_conventions(utterances: pd.DataFrame, embeddings: np.ndarray) -> dict
         v = embeddings[part["row"].to_numpy()].mean(axis=0)
         conventions[key] = v / np.linalg.norm(v)
     return conventions
-
-
-@lru_cache(maxsize=1)
-def _stopwords() -> frozenset:
-    nltk.download("stopwords", quiet=True)
-    from nltk.corpus import stopwords
-
-    return frozenset(stopwords.words("english"))
-
-
-def content_words(text) -> set[str]:
-    """The distinct content words of a description, as preprocessing/compute_measures.py defines them: lowercased alphabetic sequences, NLTK English stopwords removed, one-character words dropped."""
-    if not isinstance(text, str):
-        return set()
-    return {w for w in re.findall(r"[a-z]+", text.lower()) if w not in _stopwords() and len(w) > 1}
 
 
 def convention_vocabulary(utterances: pd.DataFrame) -> dict[tuple, set[str]]:

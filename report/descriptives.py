@@ -32,12 +32,20 @@ from preprocessing.dataset_paths import (
 from report.bootstrap import bootstrap_mean
 from report.plot_style import CONDITION_ORDER
 from preprocessing.preprocessing import (
+    EXIT_SURVEY_FILE,
     PARTICIPANT_EXCLUSIONS_FILE,
     TECHNICAL_EXCLUSIONS_FILE,
     read_participant_exclusions,
     read_technical_exclusions,
 )
-from report.stats_tex import condition_macro_name, fmt_count, fmt_stat, stats_file, write_stats_tex
+from report.stats_tex import (
+    add_allow_removed_argument,
+    condition_macro_name,
+    fmt_count,
+    fmt_stat,
+    stats_file,
+    write_stats_files,
+)
 
 SOURCE = "report/descriptives.py"
 
@@ -80,6 +88,7 @@ def load_tables(dirs) -> dict:
         "messages": pd.read_csv(t / "messages.csv", low_memory=False),
         "speaker_utts": pd.read_csv(t / utterances_file(t)),
         "social_guesses": pd.read_csv(t / "social_guesses.csv", low_memory=False),
+        "exit_survey": pd.read_csv(t / EXIT_SURVEY_FILE) if (t / EXIT_SURVEY_FILE).exists() else pd.DataFrame(),
         "dropouts": pd.read_csv(t / "dropouts.csv") if (t / "dropouts.csv").exists() else pd.DataFrame(),
         "participant_exclusions": read_participant_exclusions(inputs / PARTICIPANT_EXCLUSIONS_FILE),
         "technical_exclusions": read_technical_exclusions(inputs / TECHNICAL_EXCLUSIONS_FILE),
@@ -466,10 +475,15 @@ def listener_accuracy_by_speaker_group(ingroup_advantage: pd.DataFrame) -> pd.Da
 
 
 def final_words_by_condition(speaker_utts: pd.DataFrame, phase: int) -> pd.DataFrame:
-    """Words per description in each game's final three blocks of `phase`, averaged within game first, by condition."""
-    utts = in_conditions(speaker_utts[pd.to_numeric(speaker_utts["phaseNum"]) == phase]).copy()
-    utts["blockNum"] = pd.to_numeric(utts["blockNum"])
-    last_three = utts[utts["blockNum"] >= utts.groupby("gameId")["blockNum"].transform("max") - 2]
+    """Words per description in the final three blocks of `phase`, averaged within game first, by condition.
+
+    The final three blocks are the pipeline's `finalWindow` flag on the
+    utterances, the window of the endpoint similarity measures.
+    """
+    if "finalWindow" not in speaker_utts.columns:
+        raise SystemExit("Error: the utterances have no finalWindow column; rerun the preprocessing (make process) so it is written")
+    utts = in_conditions(speaker_utts[pd.to_numeric(speaker_utts["phaseNum"]) == phase])
+    last_three = utts[_true(utts["finalWindow"])]
     per_game = last_three.groupby(["condition", "gameId"])["uttLength"].mean().reset_index(name="words")
     out = per_game.groupby("condition")["words"].agg(games="size", mean_words="mean", sd="std").reset_index()
     out["condition"] = pd.Categorical(out["condition"], CONDITION_ORDER, ordered=True)
@@ -536,28 +550,12 @@ def exploratory_macros(t: dict) -> dict:
 
 # ── Exit survey ──────────────────────────────────────────────
 
-NUMERIC_ITEMS = ["groupIdentification", "groupCloseness", "age"]
-CATEGORICAL_ITEMS = ["gender", "education", "understood", "groupLanguage", "feltHuman"]
-
-
-def exit_survey_responses(players: pd.DataFrame, games: pd.DataFrame) -> pd.DataFrame:
-    """One row per respondent (any survey field answered) in a real game, with the prefix removed, the condition and whether the player completed the game or was removed."""
-    survey_cols = [c for c in players.columns if c.startswith("exitSurvey_")]
-    if not survey_cols:
-        return pd.DataFrame()
-    real = games[games["condition"].notna()][["gameId", "condition"]]
-    df = players.merge(real, on="gameId", how="inner")
-    answered = df[survey_cols].notna() & (df[survey_cols].astype(str) != "")
-    df = df[answered.any(axis=1)].copy()
-    df = df.rename(columns={c: c[len("exitSurvey_"):] for c in survey_cols})
-    df["respondent"] = np.where(_true(df["removed"]), "removed", "completed")
-    for item in NUMERIC_ITEMS:
-        if item in df.columns:
-            df[item] = pd.to_numeric(df[item], errors="coerce")
-    for item in CATEGORICAL_ITEMS:
-        if item in df.columns:
-            df[item] = df[item].map(lambda v: v if pd.isna(v) else str(v).lower())
-    return df
+# The respondents and their typed answers are the pipeline's exit_survey.csv
+# (build_exit_survey() in preprocessing/preprocessing.py): one row per player
+# of a real game who answered any item, with the condition, `respondent`
+# (completed or removed), the Likert items and age as numbers and the closed
+# questions in lower case. The survey tests in stats/ and the survey figure
+# read the same table.
 
 
 def has_field(survey: pd.DataFrame, field: str) -> bool:
@@ -574,8 +572,7 @@ def felt_human_flags(survey: pd.DataFrame, level: str = "game") -> pd.DataFrame:
 
 
 def survey_macros(t: dict) -> dict:
-    games, players = t["games"], t["players"]
-    survey = exit_survey_responses(players, games)
+    games, players, survey = t["games"], t["players"], t["exit_survey"]
     real_players = players[players["gameId"].isin(games.loc[games["condition"].notna(), "gameId"])]
     macros = {
         "surveyNRespondents": len(survey),
@@ -619,6 +616,7 @@ def survey_macros(t: dict) -> dict:
 def main():
     parser = argparse.ArgumentParser(description="Write the article's descriptive macros for one dataset")
     add_dataset_argument(parser)
+    add_allow_removed_argument(parser)
     args = parser.parse_args()
     dirs = dataset_dirs(args.dataset)
     if not (dirs.tables / "trials.csv").exists():
@@ -630,9 +628,12 @@ def main():
         print(f"  note: {dirs.estimates / 'primary' / 'group_specificity.csv'} is missing; run "
               "`Rscript stats/primary/group_specificity.R` (or `make estimates`) first for the "
               "Phase 1 group-specificity macros")
-    write_stats_tex(overview_macros(t), stats_file("overview", dirs), source=SOURCE, dataset=dirs.name)
-    write_stats_tex(exploratory_macros(t), stats_file("exploratory", dirs), source=SOURCE, dataset=dirs.name)
-    write_stats_tex(survey_macros(t), stats_file("survey", dirs), source=SOURCE, dataset=dirs.name)
+    files = {
+        stats_file("overview", dirs): overview_macros(t),
+        stats_file("exploratory", dirs): exploratory_macros(t),
+        stats_file("survey", dirs): survey_macros(t),
+    }
+    write_stats_files(files, source=SOURCE, dataset=dirs.name, allow_removed=args.allow_removed)
 
 
 if __name__ == "__main__":
