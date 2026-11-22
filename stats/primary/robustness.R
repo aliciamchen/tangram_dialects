@@ -19,9 +19,8 @@
 # and three are additions:
 #
 #   complete_games      games that kept all nine players; H3a, H3b and H3c
-#                       are refit on them too, so that the SI's figures of
-#                       the intact games (report/figures/intact_games.py)
-#                       can mark every test with a test on the games drawn
+#                       are refit on them too, for the SI's table of the
+#                       Phase 1 tests under each sensitivity analysis
 #   tangram_set         tangram set as a covariate (balanced within condition,
 #                       so a sensitivity analysis rather than a primary term)
 #   late_arrivals       H4 with late answers dropped instead of counted as
@@ -241,9 +240,8 @@ note_restriction(
 
 # The H3 tests on the same games. The restriction concerns Phase 2 attrition
 # and the H3 tests Phase 1, so this is the same-games companion of the reruns
-# above rather than a check of the H3 conclusions: the SI's figures of the
-# intact games mark every test with a test on the games they draw. The models
-# are those of h3a.R, h3b.R and h3c.R.
+# above rather than a check of the H3 conclusions, reported in the SI's table
+# of the Phase 1 tests. The models are those of h3a.R, h3b.R and h3c.R.
 cat("\n=== H3 on the complete nine-player games ===\n")
 h3a_complete <- fit_h3a(gs |> filter(gameId %in% complete))
 if (

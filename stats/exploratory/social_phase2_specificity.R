@@ -18,9 +18,9 @@
 # contrast, with the games in the model),
 # exploratory/social_phase2_specificity_coefficients.csv, and
 # exploratory/social_phase2_specificity_robustness.csv, the same contrast on
-# the games that kept all nine players, the complete-games restriction of
-# primary/robustness.R, which the SI's version of the adjusted panel draws
-# (report/figures/intact_games.py).
+# the games that kept all three original groups throughout Phase 2, the
+# preregistered three-groups restriction of primary/robustness.R, which the
+# SI's version of the adjusted panel draws (report/figures/intact_games.py).
 
 source(here::here("stats", "config.R"))
 suppressPackageStartupMessages(library(emmeans))
@@ -73,10 +73,13 @@ write_estimates(
   source = "stats/exploratory/social_phase2_specificity.R"
 )
 
-# ── Complete nine-player games ────────────────────────────────────────────
-complete <- complete_games(games)
-fit_complete <- fit_game_level(
-  gs |> filter(gameId %in% complete),
+# ── Games that kept three groups throughout Phase 2 ───────────────────────
+# The restriction is named and defined as in primary/robustness.R.
+three_groups <- games |>
+  filter(!is.na(condition), as.integer(activeGroupsMin) == 3) |>
+  pull(gameId)
+fit_three_groups <- fit_game_level(
+  gs |> filter(gameId %in% three_groups),
   outcome = "gs_phase2",
   predictors = "gs_phase1",
   conditions = SOCIAL_CONDITIONS,
@@ -84,28 +87,32 @@ fit_complete <- fit_game_level(
     socialfirst_vs_socialmixed = c("social_first", "social_mixed")
   )
 )
-if (is.null(fit_complete$contrasts) || nrow(fit_complete$data) < 4) {
+if (is.null(fit_three_groups$contrasts) || nrow(fit_three_groups$data) < 4) {
   stop(
-    "The social Phase 2 comparison on complete games needs both social conditions with at least two games each",
-    if (!is.null(fit_complete$note)) paste0(": ", fit_complete$note) else "",
+    "The social Phase 2 comparison on the games that kept three groups needs both social conditions with at least two games each",
+    if (!is.null(fit_three_groups$note)) {
+      paste0(": ", fit_three_groups$note)
+    } else {
+      ""
+    },
     ".",
     call. = FALSE
   )
 }
 cat(sprintf(
-  "\nComplete nine-player games in the model: %d of %d\n",
-  nrow(fit_complete$data),
-  length(complete)
+  "\nGames that kept three groups throughout Phase 2 in the model: %d of %d\n",
+  nrow(fit_three_groups$data),
+  length(three_groups)
 ))
-print(knitr::kable(fit_complete$data |> count(condition, name = "games")))
-print(summary(fit_complete$contrasts, infer = c(TRUE, TRUE)))
+print(knitr::kable(fit_three_groups$data |> count(condition, name = "games")))
+print(summary(fit_three_groups$contrasts, infer = c(TRUE, TRUE)))
 
 write_estimates(
   tidy_contrasts(
-    fit_complete$contrasts,
+    fit_three_groups$contrasts,
     "social_phase2_specificity",
-    restriction = "complete_games",
-    n_games = nrow(fit_complete$data),
+    restriction = "three_groups",
+    n_games = nrow(fit_three_groups$data),
     measure = "sbert"
   ),
   "exploratory/social_phase2_specificity_robustness",
