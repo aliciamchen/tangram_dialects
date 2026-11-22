@@ -10,8 +10,8 @@ curves at middling similarity is whatever else they used.
 A group's convention for a tangram is the mean embedding of its members'
 final Phase 1 descriptions (phase1_conventions()), and a judged description
 is scored by its cosine similarity to the listener's group's convention, so
-the x variable is the listener's, not the speaker's; the outcomes-by-alignment
-panel of the convention-alignment figure conditions on the speaker's. The
+the x variable is the listener's, not the speaker's; the outcome panels of
+the convention-alignment figure condition on the speaker's group. The
 judgments are binned by equal widths of similarity (BINS), a bin is drawn
 where it holds at least MIN_OBS judgments, and each point is the share in the
 bin with its bootstrap interval over games, set at the bin's mean similarity.
