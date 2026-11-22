@@ -47,6 +47,7 @@ GAMES = pd.DataFrame(
         "gameId": ["g1", "g2", "g0"],
         "condition": ["social_mixed", "refer_separated", None],
         "activeGroups": [3, 1, 3],
+        "activeGroupsMin": [3, 1, 3],
         "ranToCompletion": [True, False, True],
         "completeNine": [False, False, True],
     }

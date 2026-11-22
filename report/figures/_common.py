@@ -50,7 +50,8 @@ And for a figure assembled by hand from separate panels:
 And the restriction under which the SI draws the main panels again
 (intact_games.py):
 
-    intact_games(dirs)                   the games that kept all nine players
+    three_group_games(dirs)              the games that kept all three original
+                                         groups throughout Phase 2
     restricted_games(dirs, restriction)  the games a rerun of
                                          stats/primary/robustness.R keeps, by
                                          the rerun's name (RESTRICTIONS)
@@ -260,13 +261,13 @@ def social_guesses(dirs) -> pd.DataFrame:
 # games and its brackets and contrasts can be the rerun's.
 
 
-def intact_games(dirs) -> set[str]:
-    """The games that kept all nine players to the end: `completeNine` on games.csv, as the pipeline coded it, the games the complete-games rerun keeps."""
+def three_group_games(dirs) -> set[str]:
+    """The games that kept all three original groups throughout Phase 2, the preregistered restriction: `activeGroupsMin` of 3 on games.csv, as the three-groups rerun reads it."""
     games = read_table(dirs, "games.csv")
-    return set(games.loc[is_true(games["completeNine"]), "gameId"])
+    return set(games.loc[numeric(games["activeGroupsMin"]) == 3, "gameId"])
 
 
-RESTRICTIONS = {"complete_games": intact_games}  # by the rerun's name in primary/robustness.csv
+RESTRICTIONS = {"three_groups": three_group_games}  # by the rerun's name in primary/robustness.csv
 
 
 def restricted_games(dirs, restriction: str | None) -> set[str] | None:

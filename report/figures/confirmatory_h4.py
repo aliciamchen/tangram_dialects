@@ -17,8 +17,8 @@ predicted direction.
 
 Under a restriction (`restriction`, a rerun of stats/primary/robustness.R
 named in _common.RESTRICTIONS; the SI's intact_games.py draws the panels on
-the complete games) the games are those the rerun keeps and the brackets and
-contrasts are the rerun's.
+the games that kept three groups throughout Phase 2) the games are those the
+rerun keeps and the brackets and contrasts are the rerun's.
 
 The panels are written to results/plots/confirmatory_tests/ (FOLDER), carry no
 letter or title, and leave the game counts and the test statistics to the

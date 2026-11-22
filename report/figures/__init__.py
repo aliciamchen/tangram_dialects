@@ -77,7 +77,7 @@ def run_figure(module, dirs) -> Path | list[Path]:
 
     Returns the PDF written, or the list of PDFs when the module's plot()
     returns a dict of panels. A module that sets FOLDER writes into that
-    subfolder of the plots directory (the confirmatory tests, the intact games).
+    subfolder of the plots directory (the confirmatory tests, the SI's panels on the three-group games).
     """
     name = module.__name__.rsplit(".", 1)[-1]
     df = module.data(dirs)

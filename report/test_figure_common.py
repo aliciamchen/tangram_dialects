@@ -30,11 +30,11 @@ from report.figures._common import (  # noqa: E402
     word_source,
     word_stem,
     draw_stimulus,
-    intact_games,
     keep_games,
     network_layout,
     restricted_games,
     significance_stars,
+    three_group_games,
     contrast_estimates,
 )
 
@@ -186,7 +186,7 @@ def _dataset(tmp_path) -> types.SimpleNamespace:
     (estimates / "primary").mkdir(parents=True)
     pd.DataFrame({
         "gameId": ["whole", "short", "ended"], "condition": ["refer_mixed"] * 3, "activeGroups": [3, 3, 1],
-        "ranToCompletion": [True, True, False], "completeNine": [True, False, False],
+        "activeGroupsMin": [3, 3, 1], "ranToCompletion": [True, True, False], "completeNine": [True, False, False],
     }).to_csv(tables / "games.csv", index=False)
     pd.DataFrame({"analysis": ["h4a"], "term": ["H4a"], "p_value": [0.1], "n_games": [59]}).to_csv(
         estimates / "primary" / "h4.csv", index=False
@@ -200,16 +200,16 @@ def _dataset(tmp_path) -> types.SimpleNamespace:
     return types.SimpleNamespace(tables=tables, estimates=estimates)
 
 
-def test_intact_games_are_the_games_that_kept_all_nine_players(tmp_path):
-    assert intact_games(_dataset(tmp_path)) == {"whole"}
+def test_three_group_games_are_the_games_that_kept_three_groups_through_phase_two(tmp_path):
+    assert three_group_games(_dataset(tmp_path)) == {"whole", "short"}
 
 
 def test_restricted_games_names_a_rerun_and_keeps_every_game_without_one(tmp_path):
     dirs = _dataset(tmp_path)
     assert restricted_games(dirs, None) is None
-    assert restricted_games(dirs, "complete_games") == {"whole"}
+    assert restricted_games(dirs, "three_groups") == {"whole", "short"}
     with pytest.raises(ValueError, match="No restriction named"):
-        restricted_games(dirs, "three_groups")
+        restricted_games(dirs, "complete_games")
 
 
 def test_keep_games_keeps_the_named_games_or_all_of_them():

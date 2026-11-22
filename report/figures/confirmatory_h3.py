@@ -27,10 +27,10 @@ use), and the mean Zipf frequency of the descriptions.
 
 Under a restriction (`restriction`, a rerun of stats/primary/robustness.R
 named in _common.RESTRICTIONS) the games are those the rerun keeps and each
-bracket is the rerun's where the script refit the test (it refits H3a, H3b
-and H3c on the complete games) and absent where it did not. The SI's
-intact_games.py reads this table for its summary panels and draws none of
-these.
+bracket is the rerun's where the script refit the test and absent where it
+did not (it refits no H3 test on the games that kept three groups, a
+restriction of the Phase 2 analyses). The SI's intact_games.py draws none of
+these, and its summary panels leave the H3 tests out.
 
 The panels are written to results/plots/confirmatory_tests/ (FOLDER), carry no
 letter or title, and leave the game counts and the test statistics to the

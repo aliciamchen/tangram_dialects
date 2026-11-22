@@ -25,9 +25,12 @@ standardized difference.
 
 Under a restriction (`restriction`, a rerun of stats/primary/robustness.R
 named in _common.RESTRICTIONS; the SI's intact_games.py draws the panels on
-the complete games) the per-game values are those of the games the rerun
-keeps and the marks are the rerun's (the robustness script refits every test
-on the complete games); a test the rerun does not refit carries no mark.
+the games that kept three groups throughout Phase 2) the per-game values are
+those of the games the rerun keeps, the marks are the rerun's, and the
+panels hold only the tests the rerun refits, with their rows and columns
+spaced as in the full panels: on the three-group games the four Phase 2
+tests, since the preregistration names that restriction for the Phase 2
+analyses.
 
 The panels are written to results/plots/confirmatory_tests/ (FOLDER), carry no
 letter or title, and leave the game counts to the caption."""
@@ -112,6 +115,8 @@ def data(dirs, restriction: str | None = None) -> pd.DataFrame:
     rng = np.random.default_rng(SEED)
     rows = []
     for label, (source, base, other, sign) in TESTS.items():
+        if restriction is not None and not np.isfinite(p_values[source]):
+            continue  # a test the rerun does not refit
         g = per_game[source]
         a = g.loc[g["condition"] == base, "value"].to_numpy()
         b = g.loc[g["condition"] == other, "value"].to_numpy()
@@ -128,12 +133,19 @@ def data(dirs, restriction: str | None = None) -> pd.DataFrame:
 
 
 def plot(df: pd.DataFrame) -> dict:
-    tests = df[df["part"] == "test"].set_index("label").loc[list(TESTS)].reset_index()
+    tests = df[df["part"] == "test"].set_index("label")
+    tests = tests.loc[[label for label in TESTS if label in tests.index]].reset_index()
     return {"standardized_differences": _differences(tests), "standardized_columns": _columns(df[df["part"] == "game"], tests)}
 
 
+def _columns_xlim(n: int) -> tuple[float, float]:
+    """The x range of the pairs of columns of `n` tests, in columns."""
+    return (-0.8, COLUMN_STEP * (n - 1) + 1.8)
+
+
 def _differences(tests: pd.DataFrame):
-    fig, ax = panel_figure(axes=SUMMARY_ROWS_PANEL_AXES, left=2.1, right=0.4, top=0.12, bottom=0.42)
+    width, height = SUMMARY_ROWS_PANEL_AXES  # the area of every test; fewer tests keep the row height
+    fig, ax = panel_figure(axes=(width, height * (len(tests) / len(TESTS))), left=2.1, right=0.4, top=0.12, bottom=0.42)
     draw_contrasts(ax, tests)
     for y, row in zip(np.arange(len(tests))[::-1], tests.itertuples()):
         if np.isfinite(row.p_value):  # no mark for a test not run under the restriction
@@ -147,7 +159,9 @@ def _differences(tests: pd.DataFrame):
 
 
 def _columns(games: pd.DataFrame, tests: pd.DataFrame):
-    fig, ax = panel_figure(axes=SUMMARY_COLUMNS_PANEL_AXES, left=0.55, right=0.12, top=0.12, bottom=1.2)
+    width, height = SUMMARY_COLUMNS_PANEL_AXES  # the area of every test; fewer tests keep the column spacing
+    width *= np.ptp(_columns_xlim(len(tests))) / np.ptp(_columns_xlim(len(TESTS)))
+    fig, ax = panel_figure(axes=(width, height), left=0.55, right=0.12, top=0.12, bottom=1.2)
     rng = np.random.default_rng(SEED)
     for k, row in enumerate(tests.itertuples()):
         _, base, other, _ = TESTS[row.label]
@@ -163,7 +177,7 @@ def _columns(games: pd.DataFrame, tests: pd.DataFrame):
     ax.axhline(0, **REFERENCE_LINE)
     ax.set_xticks([COLUMN_STEP * k + 0.5 for k in range(len(tests))])
     ax.set_xticklabels(tests["label"], rotation=40, ha="right", fontsize=SMALL_SIZE)
-    ax.set_xlim(-0.8, COLUMN_STEP * (len(tests) - 1) + 1.8)
+    ax.set_xlim(*_columns_xlim(len(tests)))
     ax.set_ylim(-3.5, 10.5)
     ax.set_yticks([0, 4, 8])
     ax.set_ylabel("Standardized difference from the\ncomparison condition (higher = predicted)")

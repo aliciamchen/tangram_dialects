@@ -1,25 +1,31 @@
-"""The article's main panels drawn from the games that kept all nine players
-alone, for the SI's check that attrition does not carry the results: the
-within- and between-group similarity trajectories (group_specificity.py), the
-before/after, adjusted and contrast panels of H1 and H2
-(confirmatory_h1_h2.py), referential accuracy by block
+"""The article's main panels drawn from the games that kept all three original
+groups throughout Phase 2 alone, the preregistered sensitivity analysis of
+the Phase 2 results, for the SI's check that the loss of a group does not
+carry them: the within- and between-group similarity trajectories
+(group_specificity.py), the before/after, adjusted and contrast panels of H1
+and H2 (confirmatory_h1_h2.py), referential accuracy by block
 (block_trajectories.py), group recognition by block (group_recognition.py),
 the H4 columns and contrasts (confirmatory_h4.py), and the two
-confirmatory-summary panels, the standardized differences of every test and
+confirmatory-summary panels, the standardized differences of the tests and
 the standardized columns (confirmatory_summary.py).
 
-Each panel is its source module's, drawn under the complete-games restriction
+Each panel is its source module's, drawn under the three-groups restriction
 of stats/primary/robustness.R (RESTRICTION, named as primary/robustness.csv
 names the rerun): the per-game values and the bootstrap intervals are over the
-intact games, which _common.intact_games() codes as the pipeline does, and the
-brackets and contrasts of H1, H2, H4a and H4b are the rerun's, and the
-social_first bracket of the adjusted panel is the exploratory test's own rerun
-on the same games (stats/exploratory/social_phase2_specificity.R), and the H3
-marks are the robustness script's refits of H3a, H3b and H3c on those games.
+games the rerun keeps, which _common.three_group_games() reads from the
+pipeline's activeGroupsMin as the rerun does, and the brackets and contrasts
+of H1, H2, H4a and H4b are the rerun's. The social_first bracket of the
+adjusted panel is the exploratory test's own rerun on the same games
+(stats/exploratory/social_phase2_specificity.R). The restriction concerns the
+Phase 2 analyses, so no script refits the H3 tests under it and the summary
+panels hold the four Phase 2 tests alone.
 
-The panels are written to results/plots/intact_games/ (FOLDER) as
-intact_games_<source>_<panel>.pdf, carry no letter or title, and leave the
-game counts to the caption."""
+The module, its folder and its panels are named intact_games, the name under
+which the article's Illustrator file links the panels, so that the links
+hold; the games drawn are those that kept three groups, of which the games
+that kept all nine players are a part. The panels are written to
+results/plots/intact_games/ (FOLDER) as intact_games_<source>_<panel>.pdf,
+carry no letter or title, and leave the game counts to the caption."""
 
 from __future__ import annotations
 
@@ -36,7 +42,7 @@ from report.figures import (
 )
 
 FOLDER = "intact_games"
-RESTRICTION = "complete_games"
+RESTRICTION = "three_groups"
 # source module: the panels of its figure drawn here, or None for a module whose plot() is one figure
 SOURCES = {
     group_specificity: None,

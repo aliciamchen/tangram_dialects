@@ -138,10 +138,13 @@ def group_attrition(players: pd.DataFrame, games: pd.DataFrame) -> pd.DataFrame:
 
 
 def game_status(games: pd.DataFrame) -> pd.DataFrame:
-    """One row per real game: `ran_to_completion` and `complete_nine`, the pipeline's `ranToCompletion` and `completeNine`."""
+    """One row per real game: `ran_to_completion` and `complete_nine`, the pipeline's `ranToCompletion` and `completeNine`,
+    and `three_groups`, the games that kept all three original groups throughout Phase 2 (`activeGroupsMin` of 3,
+    the preregistered restriction as stats/primary/robustness.R reads it)."""
     out = games[games["condition"].notna()][["gameId", "condition"]].copy()
     out["ran_to_completion"] = _true(games.loc[out.index, "ranToCompletion"])
     out["complete_nine"] = _true(games.loc[out.index, "completeNine"])
+    out["three_groups"] = pd.to_numeric(games.loc[out.index, "activeGroupsMin"], errors="coerce") == 3
     return out
 
 
@@ -335,7 +338,8 @@ def reshuffle_macros(trials: pd.DataFrame) -> dict:
 
 
 def condition_counts(t: dict) -> pd.DataFrame:
-    """Per condition: games started, run to completion and complete with nine players; players, players
+    """Per condition: games started, run to completion, complete with nine players and with three groups
+    kept throughout Phase 2; players, players
     removed (and removed through no fault of their own), original groups lost, and excluded participants."""
     games, players = t["games"], t["players"]
     status = game_status(games)
@@ -346,6 +350,7 @@ def condition_counts(t: dict) -> pd.DataFrame:
     out["games"] = out["condition"].map(status.groupby("condition").size())
     out["games_ran_to_completion"] = out["condition"].map(status.groupby("condition")["ran_to_completion"].sum())
     out["games_complete"] = out["condition"].map(status.groupby("condition")["complete_nine"].sum())
+    out["games_three_groups"] = out["condition"].map(status.groupby("condition")["three_groups"].sum())
     out["players"] = out["condition"].map(pa.groupby("condition").size())
     out["removed"] = out["condition"].map(pa.groupby("condition")["removed"].sum())
     out["removed_no_fault"] = out["condition"].map(pa.groupby("condition")["no_fault"].sum())
@@ -362,6 +367,7 @@ def condition_count_macros(counts: pd.DataFrame) -> dict:
         "games": "NGames",
         "games_ran_to_completion": "NGamesRanToCompletion",
         "games_complete": "NGamesComplete",
+        "games_three_groups": "NGamesThreeGroups",
         "players": "NPlayers",
         "removed": "NRemoved",
         "removed_no_fault": "NRemovedNoFault",
@@ -415,6 +421,7 @@ def overview_macros(t: dict) -> dict:
         "overviewNRemovedNoFault": int(pa["no_fault"].sum()),
         "overviewNGroupsLost": int(ga["lost"].sum()),
         "overviewNGamesComplete": int(status["complete_nine"].sum()),
+        "overviewNGamesThreeGroups": int(status["three_groups"].sum()),
         "overviewNGamesRanToCompletion": int(status["ran_to_completion"].sum()),
         "overviewNDropouts": len(t["dropouts"]),
         **session_minutes_macros(t["players"], t["games"]),

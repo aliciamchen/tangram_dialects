@@ -28,7 +28,8 @@ right as in the adjusted panel; unadjusted, the raw data of the test.
 
 Under a restriction (`restriction`, a rerun of stats/primary/robustness.R
 named in _common.RESTRICTIONS; the SI's intact_games.py draws the panels on
-the complete games) the games are those the rerun keeps, the brackets and the
+the games that kept three groups throughout Phase 2) the games are those the
+rerun keeps, the brackets and the
 contrasts panel are the rerun's, and the adjustment uses the primary model's
 Phase 1 slope about the kept games' mean, since the rerun writes no slope;
 social_first's bracket is the exploratory test's own rerun on the same games
