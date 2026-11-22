@@ -14,6 +14,12 @@ names the manuscript uses:
                                                       slope, with <prefix>Lo and
                                                       <prefix>Hi where the
                                                       interval is quoted
+    <prefix>Stat, <prefix>Df                          a test's t or z with its
+                                                      degrees of freedom (a z
+                                                      test has no Df)
+    <prefix>CohenD, <prefix>CohenDLo, <prefix>CohenDHi
+                                                      a standardized difference
+                                                      between two conditions
     <prefix>OR, <prefix>ORLo, <prefix>ORHi            a logistic coefficient's
                                                       odds ratio
     <prefix>Stat, <prefix>Df, <prefix>P               a classical test
@@ -42,6 +48,7 @@ Tests: report/test_inferential.py
 from __future__ import annotations
 
 import argparse
+import math
 from pathlib import Path
 
 import pandas as pd
@@ -53,6 +60,7 @@ from report.stats_tex import (
     condition_macro_name,
     fmt_bf,
     fmt_count,
+    fmt_df,
     fmt_pval,
     fmt_stat,
     stats_file,
@@ -146,6 +154,28 @@ def coef_macros(prefix: str, r: pd.Series | None, digits: int = 3) -> dict:
     }
 
 
+def statistic_macros(prefix: str, r: pd.Series | None) -> dict:
+    """Stat (t or z, two decimals) of a test row, and Df when the test has finite degrees of freedom (a z test has none)."""
+    if r is None or pd.isna(r.get("statistic")):
+        return {}
+    out = {f"{prefix}Stat": fmt_stat(r["statistic"], 2)}
+    df = r.get("df")
+    if df is not None and not pd.isna(df) and math.isfinite(float(df)):
+        out[f"{prefix}Df"] = fmt_df(df)
+    return out
+
+
+def cohens_d_macros(prefix: str, r: pd.Series | None) -> dict:
+    """CohenD, CohenDLo and CohenDHi of an effect-size row (two decimals); nothing when it was not estimable."""
+    if r is None or pd.isna(r.get("d")):
+        return {}
+    return {
+        f"{prefix}CohenD": fmt_stat(r["d"], 2),
+        f"{prefix}CohenDLo": fmt_stat(r["CI_low"], 2),
+        f"{prefix}CohenDHi": fmt_stat(r["CI_high"], 2),
+    }
+
+
 def interval_macros(prefix: str, r: pd.Series | None, digits: int = 3) -> dict:
     """Lo and Hi of a row's 95% interval; nothing for a missing row or an interval not estimated."""
     if r is None or pd.isna(r.get("lower")) or pd.isna(r.get("upper")):
@@ -201,10 +231,11 @@ def checks_macros(est: Estimates) -> dict:
         m["checksNUtterances"] = fmt_count(length["n_rows"])
     if accuracy is not None:
         m["checksNListenerTrials"] = fmt_count(accuracy["n_rows"])
-    m.update(coef_macros("checksLength", length))
-    m.update(coef_macros("checksAccuracy", accuracy))
+    for prefix, trend in (("checksLength", length), ("checksAccuracy", accuracy), ("checksAdjacent", adjacent)):
+        m.update(coef_macros(prefix, trend))
+        m.update(statistic_macros(prefix, trend))
+        m.update(interval_macros(prefix, trend))
     m.update(or_macros("checksAccuracy", accuracy))
-    m.update(coef_macros("checksAdjacent", adjacent))
 
     gs = est.table("checks/phase1_group_specificity")
     if not gs.empty:
@@ -256,6 +287,11 @@ def primary_macros(est: Estimates) -> dict:
         m["primaryNGamesHOneTwo"] = count(h1["n_games"])
     m.update(contrast_macros("primaryHOne", h1))
     m.update(contrast_macros("primaryHTwo", h2))
+    m.update(statistic_macros("primaryHOne", h1))
+    m.update(statistic_macros("primaryHTwo", h2))
+    # The unadjusted two-sample d of the game-level estimates, the scale of the sampling plan
+    m.update(cohens_d_macros("primaryHOne", est.row("primary/h1_h2_effect_sizes", contrast="refer_separated - refer_mixed")))
+    m.update(cohens_d_macros("primaryHTwo", est.row("primary/h1_h2_effect_sizes", contrast="social_mixed - refer_mixed")))
     if h1 is not None:
         m.update(bf_macro("primaryHOne", est.row("primary/bayes_factors", hypothesis="H1")))
         m.update(bf_macro("primaryHTwo", est.row("primary/bayes_factors", hypothesis="H2")))
@@ -267,33 +303,44 @@ def primary_macros(est: Estimates) -> dict:
     if h3a is not None:
         m["primaryNGamesHThreeA"] = count(h3a["n_games"])
     m.update(contrast_macros("primaryHThreeA", h3a))
+    m.update(statistic_macros("primaryHThreeA", h3a))
+    m.update(cohens_d_macros("primaryHThreeA", est.row("primary/h3a_effect_sizes", contrast="social_first - social_mixed")))
     if h3a is not None:
         m.update(bf_macro("primaryHThreeA", est.row("primary/bayes_factors", hypothesis="H3a")))
+    m.update(contrast_macros("primaryHThreeAWls", est.row("primary/h3a", analysis="h3a_wls")))
 
     # H3b: the rate and the alignment at block 3, reported separately
-    m.update(contrast_macros("primaryHThreeB", est.row("primary/h3b", analysis="h3b_rate", measure="sbert")))
-    m.update(contrast_macros("primaryHThreeBBlockThree", est.row("primary/h3b", analysis="h3b_block3", measure="sbert")))
+    h3b_rate = est.row("primary/h3b", analysis="h3b_rate", measure="sbert")
+    h3b_block3 = est.row("primary/h3b", analysis="h3b_block3", measure="sbert")
+    m.update(contrast_macros("primaryHThreeB", h3b_rate))
+    m.update(statistic_macros("primaryHThreeB", h3b_rate))
+    m.update(contrast_macros("primaryHThreeBBlockThree", h3b_block3))
+    m.update(statistic_macros("primaryHThreeBBlockThree", h3b_block3))
 
     # H3c: the three description properties (social_first minus social_mixed)
     # Each with its 95% interval (Wald on the log-odds scale for the two
     # logistic models, which also get the odds ratio and its interval)
-    for prefix, analysis in (
+    h3c_models = (
         ("primaryHThreeCConcrete", "h3c_concreteness"),
         ("primaryHThreeCUnique", "h3c_uniqueness"),
         ("primaryHThreeCFreq", "h3c_word_frequency"),
-    ):
+    )
+    for prefix, analysis in h3c_models:
         r = est.row("primary/h3c", analysis=analysis)
         m.update(coef_macros(prefix, r))
+        m.update(statistic_macros(prefix, r))
         m.update(interval_macros(prefix, r))
         m.update(or_macros(prefix, r))
 
     # H4a and H4b: odds-ratio contrasts with their Bayes factors
     h4a = est.row("primary/h4", analysis="h4a")
     m.update(contrast_macros("primaryHFourA", h4a))
+    m.update(statistic_macros("primaryHFourA", h4a))
     if h4a is not None:
         m.update(bf_macro("primaryHFourA", est.row("primary/bayes_factors", hypothesis="H4a")))
     h4b = est.row("primary/h4", analysis="h4b")
     m.update(contrast_macros("primaryHFourB", h4b))
+    m.update(statistic_macros("primaryHFourB", h4b))
     if h4b is not None:
         m.update(bf_macro("primaryHFourB", est.row("primary/bayes_factors", hypothesis="H4b")))
 
@@ -330,8 +377,32 @@ def primary_macros(est: Estimates) -> dict:
         m.update(contrast_macros(f"primaryHTwo{suffix}", pick_row(rr, restriction=restriction, analysis="h1_h2", term="H2_social_vs_mixed")))
         m.update(contrast_macros(f"primaryHFourA{suffix}", pick_row(rr, restriction=restriction, analysis="h4a")))
         m.update(contrast_macros(f"primaryHFourB{suffix}", pick_row(rr, restriction=restriction, analysis="h4b")))
-    m.update(contrast_macros("primaryHOneActiveGroups", pick_row(rr, restriction="active_groups", analysis="h1_h2", term="H1_sep_vs_mixed")))
-    m.update(contrast_macros("primaryHTwoActiveGroups", pick_row(rr, restriction="active_groups", analysis="h1_h2", term="H2_social_vs_mixed")))
+
+    # The reruns that keep every game and change the model or the coding: a
+    # covariate for the active groups or for the tangram set, group
+    # specificity adjusted for description length (H1 and H2 only) and late
+    # answers left out instead of scored as incorrect (H4 only). A rerun has a
+    # macro for each hypothesis it has a row for.
+    for restriction, suffix in (
+        ("active_groups", "ActiveGroups"),
+        ("tangram_set", "TangramSet"),
+        ("length_adjusted", "LengthAdjusted"),
+        ("late_arrivals", "LateDropped"),
+    ):
+        m.update(contrast_macros(f"primaryHOne{suffix}", pick_row(rr, restriction=restriction, analysis="h1_h2", term="H1_sep_vs_mixed")))
+        m.update(contrast_macros(f"primaryHTwo{suffix}", pick_row(rr, restriction=restriction, analysis="h1_h2", term="H2_social_vs_mixed")))
+        m.update(contrast_macros(f"primaryHFourA{suffix}", pick_row(rr, restriction=restriction, analysis="h4a")))
+        m.update(contrast_macros(f"primaryHFourB{suffix}", pick_row(rr, restriction=restriction, analysis="h4b")))
+
+    # The Phase 1 tests refit on the complete games of the two social conditions
+    h3a_complete = pick_row(rr, restriction="complete_games", analysis="h3a")
+    if h3a_complete is not None:
+        m["primaryNGamesSocialComplete"] = count(h3a_complete["n_games"])
+    m.update(contrast_macros("primaryHThreeAComplete", h3a_complete))
+    m.update(contrast_macros("primaryHThreeBComplete", pick_row(rr, restriction="complete_games", analysis="h3b_rate")))
+    m.update(contrast_macros("primaryHThreeBBlockThreeComplete", pick_row(rr, restriction="complete_games", analysis="h3b_block3")))
+    for prefix, analysis in h3c_models:
+        m.update(contrast_macros(f"{prefix}Complete", pick_row(rr, restriction="complete_games", analysis=analysis)))
 
     # Per-game fits at a variance boundary
     if not gs.empty and "singular" in gs.columns:

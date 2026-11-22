@@ -156,6 +156,27 @@ def test_the_three_files_are_built_from_the_tables_and_skip_what_is_missing(tmp_
     assert primary["primaryNGamesComplete"] == 48 and primary["primaryHOneCompleteEst"] == "0.347"
     assert "primaryHTwoCompleteEst" not in primary and "primaryNGamesThreeGroups" not in primary
     assert primary["primaryHFourAThreeGroupsEst"] == "1.130"
+    assert not [name for name in primary if "TangramSet" in name or "LateDropped" in name], (
+        "a rerun without a row contributes no macro"
+    )
+    assert primary["primaryHThreeCConcreteStat"] == "1.38" and "primaryHThreeCConcreteDf" not in primary, (
+        "a z test has a statistic and no degrees of freedom"
+    )
+    assert "primaryHOneStat" not in primary and "primaryHOneCohenD" not in primary, (
+        "a row without a statistic, and a contrast without an effect-size row, contribute no macro"
+    )
+
+    write(tmp_path, "primary/h4", pd.DataFrame({
+        "analysis": ["h4a", "h4b"], "estimate": [1.22, 1.07], "lower": [0.96, 0.86], "upper": [1.55, 1.33],
+        "p_value": [0.097, 0.534], "statistic": [1.66, 0.622], "df": [float("inf"), 57.04],
+    }))
+    write(tmp_path, "primary/h3a_effect_sizes", pd.DataFrame({
+        "contrast": ["social_first - social_mixed"], "d": [-0.2309], "CI_low": [-0.7381], "CI_high": [0.2781],
+    }))
+    again = primary_macros(Estimates(tmp_path))
+    assert again["primaryHFourAStat"] == "1.66" and "primaryHFourADf" not in again, "infinite df means a z test"
+    assert again["primaryHFourBDf"] == "57.0", "fractional degrees of freedom keep one decimal"
+    assert again["primaryHThreeACohenD"] == "-0.23" and again["primaryHThreeACohenDHi"] == "0.28"
 
     write(tmp_path, "secondary/semantic_change_switched", pd.DataFrame({
         "condition": ["refer_separated", "social_first"], "prop_switched": [0.139, 0.075],

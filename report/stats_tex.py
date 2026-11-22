@@ -188,6 +188,14 @@ def fmt_count(n) -> str:
     return f"{int(round(float(n))):,}".replace(",", "{,}")
 
 
+def fmt_df(df) -> str:
+    """Degrees of freedom: a whole number as it is, a fractional one (Satterthwaite) to one decimal."""
+    if _is_missing(df):
+        return "NA"
+    x = float(df)
+    return f"{x:.0f}" if x == round(x) else f"{x:.1f}"
+
+
 def fmt_pval(p) -> str:
     """A p-value as the manuscript prints it: "< .001", or three decimals with no leading zero."""
     if _is_missing(p):

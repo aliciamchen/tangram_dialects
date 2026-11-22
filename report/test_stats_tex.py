@@ -18,6 +18,7 @@ from report.stats_tex import (
     condition_macro_name,
     fmt_bf,
     fmt_count,
+    fmt_df,
     fmt_pval,
     fmt_stat,
     stats_file,
@@ -89,6 +90,8 @@ def test_formatting_helpers():
     assert fmt_pval(0.0423) == ".042"
     assert fmt_pval(1) == "1.000"
     assert fmt_pval(float("nan")) == "NA"
+    assert fmt_df(82) == "82" and fmt_df(82.0) == "82", "whole degrees of freedom print as integers"
+    assert fmt_df(174.0716) == "174.1" and fmt_df(None) == "NA"
     assert condition_macro_name("refer_separated") == "ReferSeparated"
     assert condition_macro_name("social_first") == "SocialFirst"
 
