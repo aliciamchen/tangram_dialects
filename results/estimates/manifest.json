@@ -102,7 +102,7 @@
       "n_games",
       "measure"
     ],
-    "commit": "d4522ae"
+    "commit": "1ae73e2-dirty"
   },
   "exploratory/social_phase2_specificity_coefficients": {
     "file": "exploratory/social_phase2_specificity_coefficients.csv",
@@ -126,7 +126,7 @@
       "random_effects",
       "n_games"
     ],
-    "commit": "d4522ae"
+    "commit": "1ae73e2-dirty"
   },
   "exploratory/social_phase2_specificity_robustness": {
     "file": "exploratory/social_phase2_specificity_robustness.csv",
@@ -147,7 +147,7 @@
       "n_games",
       "measure"
     ],
-    "commit": "d4522ae"
+    "commit": "1ae73e2-dirty"
   },
   "primary/bayes_factors": {
     "file": "primary/bayes_factors.csv",
@@ -508,7 +508,7 @@
       "or_lower",
       "or_upper"
     ],
-    "commit": "d4522ae"
+    "commit": "1ae73e2-dirty"
   },
   "primary/robustness_restrictions": {
     "file": "primary/robustness_restrictions.csv",
@@ -520,7 +520,7 @@
       "games_excluded",
       "identical"
     ],
-    "commit": "d4522ae"
+    "commit": "1ae73e2-dirty"
   },
   "secondary/ingroup_advantage": {
     "file": "secondary/ingroup_advantage.csv",
